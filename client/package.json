@@ -7,9 +7,10 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "lint": "eslint ."
+    "lint": "npx eslint ."
   },
   "dependencies": {
+    "civibridge": "file:..",
     "react": "^18.2.0",
     "react-dom": "^18.2.0"
   },
