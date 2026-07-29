@@ -1,43 +1,42 @@
-# CiviBridge Milestone Roadmap
+# CiviBridge Implementation Roadmap
 
 ## Overview
-CiviBridge is built phase-by-phase. Each phase is self-contained and focuses on a single deliverable.
+CiviBridge is developed phase-by-phase in self-contained, incremental milestones.
 
 ---
 
-### Phase 1: Repository Setup (Current)
-- Scaffolding `client/` and `server/` directories.
-- Setting up ESLint, Prettier, `.gitignore`, and `.env.example`.
-- Establishing GitHub Actions CI pipeline.
+### Phase 1: Repository Setup (Completed)
+- Establish repository layout, npm workspaces (`client`, `server`), ESLint, Prettier, `.env.example`, and GitHub Actions CI.
 
-### Phase 2: Database Schema & Prisma Setup
-- Define PostgreSQL schema for Users, Grievances, Departments, and Audit Logs.
-- Configure Prisma ORM models and initial migrations.
+### Phase 2: Database Schema & Prisma Setup (Next)
+- Initialize Prisma in `server/prisma/schema.prisma`.
+- Define PostgreSQL models for Users, Departments, Grievances, and Audit Logs.
+- Configure database migration scripts and client initialization in `server/src/db/`.
 
-### Phase 3: Authentication & Role-Based Access Control
-- Express JWT authentication middleware.
-- Citizen and Department Admin signup/login endpoints.
+### Phase 3: Authentication & User Management
+- Implement JWT authentication middleware in `server/src/middleware/`.
+- Build user registration and login controllers for Citizens and Department Admins.
 
 ### Phase 4: Core Grievance Management API
-- CRUD endpoints for filing, retrieving, and updating grievance status.
+- REST endpoints for grievance submission, retrieval, and status tracking in `server/src/routes/` and `controllers/`.
 
 ### Phase 5: Multilingual & Gemini Translation Service
-- Integration with Gemini API for translation between English, Telugu, and Hindi.
+- Gemini API integration in `server/src/services/` for English, Telugu, and Hindi translations.
 
-### Phase 6: Vector Database & ChromaDB Setup
-- ChromaDB container/service setup and collection initialization.
-- Document ingestion pipeline for civic policy documentation.
+### Phase 6: Vector Embedding & ChromaDB Integration
+- Set up ChromaDB vector database connection.
+- Document chunking and embedding generation pipeline for civic policy guidelines.
 
 ### Phase 7: RAG Retrieval & AI Assistant Engine
-- Vector search retrieval layer.
-- Context-augmented Gemini generation for drafting civic grievances.
+- Semantic similarity retrieval layer in `server/src/rag/`.
+- Context-augmented Gemini generation for drafting civic grievance complaints.
 
 ### Phase 8: Admin & Department Triage Portal API
-- Department routing, priority assignment, and status updates.
+- Department routing, priority assignment, and status update workflow endpoints.
 
-### Phase 9: React Client Frontend
-- Citizen grievance filing & tracking UI.
-- Department admin dashboard UI.
+### Phase 9: React Client Core UI & Components
+- Multilingual citizen grievance drafting & tracking interface.
+- Department administrator triage dashboard.
 
 ### Phase 10: Final Verification & Deployment
-- E2E testing, polish, and Vercel/Render deployment configurations.
+- Production build optimization, environment audit, and Vercel/Render deployment configurations.

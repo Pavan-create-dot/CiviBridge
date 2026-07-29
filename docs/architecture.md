@@ -1,8 +1,31 @@
 # CiviBridge Architecture Specification
 
-## 1. System Overview
+## 1. Current System Implementation (Phase 1)
 
-CiviBridge is designed as a clean, decoupled two-sided web application. It connects citizens needing regional language grievance assistance with government department administrators responsible for resolving issues.
+In Phase 1, CiviBridge consists of a clean, decoupled baseline repository structure with client and server entry points.
+
+```
++-------------------------------------------------------------+
+|                      React (Vite) SPA                       |
+|                 [client/src/App.jsx]                        |
++------------------------------+------------------------------+
+                               | HTTP REST (/api/health)
+                               v
++-------------------------------------------------------------+
+|                     Node.js + Express API                   |
+|                 [server/src/index.js]                       |
++-------------------------------------------------------------+
+```
+
+### Current Active Components
+1. **Client SPA (`client/`)**: Minimal React application built with Vite, serving the basic UI scaffold.
+2. **Server API (`server/src/index.js`)**: Express server exposing `/api/health` returning JSON status.
+
+---
+
+## 2. Planned System Components (Future Phases)
+
+The full system architecture will incrementally integrate the following planned modules in future phases:
 
 ```
 +-------------------------------------------------------------+
@@ -29,18 +52,7 @@ CiviBridge is designed as a clean, decoupled two-sided web application. It conne
                                     +------------------+
 ```
 
----
-
-## 2. Core Layers & Responsibilities
-
-1. **Client Layer (`client/`)**: Single-page application built with React and Vite. Handles user interaction, regional language switching, grievance drafting forms, and admin triage dashboards.
-2. **API Layer (`server/src/routes` & `controllers`)**: Validates incoming HTTP requests, checks JWT authorization, and delegates processing to services.
-3. **Service Layer (`server/src/services`)**: Implements core business logic for user management, grievance workflows, and AI interaction.
-4. **RAG Module (`server/src/rag`)**: Manages document chunking, embedding generation, ChromaDB vector querying, and Gemini prompt assembly.
-5. **Data Layer (`server/src/models` & Prisma)**: Provides typed database access to PostgreSQL.
-
----
-
-## 3. Key Design Constraints
-- **Simplicity first**: No microservices, message queues, or enterprise message brokers.
-- **Explainability**: Every architectural layer can be explained in under 2 minutes during placement interviews.
+### Planned Layer Responsibilities
+* **Database Layer (`server/src/db` & `server/prisma`)** *(Phase 2)*: PostgreSQL database accessed via Prisma ORM for users, grievances, and department data.
+* **Authentication Middleware (`server/src/middleware`)** *(Phase 3)*: Role-Based Access Control (RBAC) via JSON Web Tokens (JWT).
+* **RAG & AI Module (`server/src/rag` & `services`)** *(Phase 6-7)*: ChromaDB vector retrieval and Gemini LLM prompt generation.
