@@ -17,14 +17,22 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '18.x'
+          node-version: '24.x'
           cache: 'npm'
 
-      - name: Install Dependencies
-        run: npm ci
+      - name: Check Node / npm versions
+        run: |
+          node -v
+          npm -v
+
+      - name: Fix package-lock.json registry URLs
+        run: sed -i 's|http://package-firewall.replit.local/npm/|https://registry.npmjs.org/|g' package-lock.json
+
+      - name: Install Dependencies (workspaces)
+        run: npm ci --workspaces
 
       - name: Run Linting
-        run: npm run lint
+        run: npm --workspace client run lint && npm --workspace server run lint
 
       - name: Run Client Build
-        run: npm run build
+        run: npm --workspace client run build
