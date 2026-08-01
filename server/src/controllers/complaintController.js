@@ -1,7 +1,8 @@
-// Complaint controller — Phase 4: Core Grievance Management API
+// Complaint controller — Phase 5: auto-translation wired into submission.
 // Handles submit, retrieve, and status-update operations on complaints.
 
 const prisma = require('../db/prismaClient');
+const { translateGrievanceToEnglish } = require('../services/translationService');
 
 /**
  * POST /complaints
@@ -14,12 +15,17 @@ async function submitComplaint(req, res) {
   const { rawText, detectedLanguage } = req.body;
 
   try {
+    // Phase 5: auto-translate non-English complaints to English for internal processing.
+    // translateGrievanceToEnglish returns null on failure — the complaint is always saved.
+    const translatedText = await translateGrievanceToEnglish(rawText, detectedLanguage);
+
     const complaint = await prisma.complaint.create({
       data: {
         userId: req.user.id,
         rawText,
         detectedLanguage,
-        // translatedText and matchedCategoryId remain null until Phase 5 / Phase 7
+        translatedText,      // null if English or if translation failed
+        // matchedCategoryId remains null until Phase 7 (RAG pipeline)
         status: 'pending',
       },
     });

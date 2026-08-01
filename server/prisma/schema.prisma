@@ -21,6 +21,7 @@ enum ComplaintStatus {
 enum Language {
   en
   te
+  hi
 }
 
 // Enum for user roles

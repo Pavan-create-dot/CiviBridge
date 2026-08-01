@@ -1,5 +1,5 @@
 // CiviBridge — Express server entry point
-// Phase 3: Auth routes wired in; health check retained.
+// Phase 5: Translation routes wired in.
 
 require('dotenv').config({ path: '../.env' });
 
@@ -8,6 +8,7 @@ const cors = require('cors');
 
 const authRoutes = require('./routes/authRoutes');
 const complaintRoutes = require('./routes/complaintRoutes');
+const translationRoutes = require('./routes/translationRoutes');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -31,6 +32,9 @@ app.use('/auth', authRoutes);
 
 // Complaints — grievance submission and tracking
 app.use('/complaints', complaintRoutes);
+
+// Translation — multilingual text translation and language detection
+app.use('/translate', translationRoutes);
 
 // ── Start ────────────────────────────────────────────────────────────────────
 app.listen(PORT, () => {
