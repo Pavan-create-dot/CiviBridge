@@ -6,7 +6,7 @@
   "scripts": {
     "start": "node src/index.js",
     "dev": "nodemon src/index.js",
-    "lint": "npx eslint ."
+    "lint": "eslint ."
   },
   "prisma": {
     "seed": "node prisma/seed.js"
