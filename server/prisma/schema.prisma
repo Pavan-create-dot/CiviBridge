@@ -1,0 +1,69 @@
+// Prisma schema for CiviBridge
+// Phase 2: Database Schema & Prisma Setup
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Enum for the complaint's processing state
+enum ComplaintStatus {
+  pending
+  classified
+  routed
+}
+
+// Enum for supported languages
+enum Language {
+  en
+  te
+}
+
+// Enum for user roles
+enum Role {
+  citizen
+  admin
+}
+
+// User — registered citizen or department admin
+model User {
+  id           Int         @id @default(autoincrement())
+  email        String      @unique
+  passwordHash String      // bcrypt hash; plain password is never stored
+  role         Role        @default(citizen)
+  createdAt    DateTime    @default(now())
+
+  complaints   Complaint[] // one-to-many: a user can file multiple complaints
+}
+
+// GrievanceCategory — civic issue categories used for complaint classification
+model GrievanceCategory {
+  id           Int        @id @default(autoincrement())
+  categoryName String
+  department   String
+  description  String
+  language     Language   @default(en)
+  chromaDocId  String?    // nullable — will link to ChromaDB vector in Phase 6
+  createdAt    DateTime   @default(now())
+
+  complaints   Complaint[] // one-to-many: a category can match many complaints
+}
+
+// Complaint — a citizen's submitted grievance
+model Complaint {
+  id                Int                @id @default(autoincrement())
+  userId            Int
+  rawText           String             // original text as submitted by the citizen
+  detectedLanguage  String             // ISO language code detected at submission time
+  translatedText    String?            // nullable — populated in Phase 5 (translation service)
+  matchedCategoryId Int?               // nullable — populated in Phase 7 (RAG pipeline)
+  status            ComplaintStatus    @default(pending)
+  createdAt         DateTime           @default(now())
+
+  user              User               @relation(fields: [userId], references: [id])
+  matchedCategory   GrievanceCategory? @relation(fields: [matchedCategoryId], references: [id])
+}

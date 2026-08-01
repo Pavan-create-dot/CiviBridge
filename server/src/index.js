@@ -1,16 +1,22 @@
+// CiviBridge — Express server entry point
+// Phase 3: Auth routes wired in; health check retained.
+
+require('dotenv').config({ path: '../.env' });
+
 const express = require('express');
 const cors = require('cors');
-const dotenv = require('dotenv');
 
-dotenv.config({ path: '../.env' });
+const authRoutes = require('./routes/authRoutes');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
 
+// ── Middleware ───────────────────────────────────────────────────────────────
 app.use(cors());
 app.use(express.json());
 
-// Health Check Endpoint
+// ── Routes ───────────────────────────────────────────────────────────────────
+// Health check — confirms the server is reachable
 app.get('/api/health', (req, res) => {
   res.status(200).json({
     status: 'ok',
@@ -19,6 +25,10 @@ app.get('/api/health', (req, res) => {
   });
 });
 
+// Auth — register and login
+app.use('/auth', authRoutes);
+
+// ── Start ────────────────────────────────────────────────────────────────────
 app.listen(PORT, () => {
-  console.log(`CiviBridge Server running on port ${PORT}`);
+  console.log(`CiviBridge API running on port ${PORT}`);
 });
