@@ -48,7 +48,7 @@ model GrievanceCategory {
   department   String
   description  String
   language     Language   @default(en)
-  chromaDocId  String?    // nullable — will link to ChromaDB vector in Phase 6
+  embedding    Float[]    // Gemini text embedding vector — populated in Phase 6 seeding
   createdAt    DateTime   @default(now())
 
   complaints   Complaint[] // one-to-many: a category can match many complaints
