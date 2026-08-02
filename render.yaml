@@ -1,0 +1,24 @@
+# Render service manifest — CiviBridge backend deployment
+# Repo: https://github.com/Pavan-create-dot/CiviBridge
+
+services:
+  - type: web
+    name: civibridge-server
+    runtime: node
+    plan: starter
+    region: oregon
+    repo: https://github.com/Pavan-create-dot/CiviBridge
+    branch: main
+    rootDir: server
+    buildCommand: npm install --no-audit --no-fund
+    startCommand: npm start
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      # Set these in Render dashboard → Environment:
+      # MONGODB_URI            — MongoDB Atlas connection string
+      # JWT_SECRET             — strong random secret for signing JWTs
+      # GEMINI_API_KEY         — Google Gemini AI API key
+      # ADMIN_PROVISION_SECRET — secret for provisioning admin accounts
+      # CORS_ORIGIN            — your Vercel frontend URL, e.g. https://civibridge.vercel.app

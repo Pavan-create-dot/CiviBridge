@@ -1,0 +1,31 @@
+# Dependencies
+node_modules/
+
+# Environment variables — never commit secrets
+.env
+.env.test
+.env.local
+.env.*.local
+
+# Prisma generated client (regenerated from schema on install)
+server/node_modules/.prisma/
+
+# Build output
+client/dist/
+
+# Logs
+*.log
+npm-debug.log*
+
+# OS artefacts
+.DS_Store
+Thumbs.db
+
+# IDE / environment files (not part of the project source)
+.replit
+replit.nix
+replit.md
+.cache/
+.agents/
+.local/
+attached_assets/
