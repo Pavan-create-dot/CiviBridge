@@ -3,6 +3,7 @@
 
 const prisma = require('../db/prismaClient');
 const { translateGrievanceToEnglish } = require('../services/translationService');
+const { classifyComplaintText } = require('../rag/ragService');
 
 /**
  * POST /complaints
@@ -19,14 +20,34 @@ async function submitComplaint(req, res) {
     // translateGrievanceToEnglish returns null on failure — the complaint is always saved.
     const translatedText = await translateGrievanceToEnglish(rawText, detectedLanguage);
 
+    // Phase 7: RAG Auto-classification via vector embedding similarity search
+    const textToClassify = translatedText || rawText;
+    let matchedCategoryId = null;
+    let status = 'pending';
+
+    try {
+      const { topMatch } = await classifyComplaintText(textToClassify);
+      if (topMatch && topMatch.category) {
+        matchedCategoryId = topMatch.category.id;
+        status = 'classified';
+      }
+    } catch (ragErr) {
+      console.warn('Auto RAG classification skipped:', ragErr.message);
+    }
+
     const complaint = await prisma.complaint.create({
       data: {
         userId: req.user.id,
         rawText,
         detectedLanguage,
-        translatedText,      // null if English or if translation failed
-        // matchedCategoryId remains null until Phase 7 (RAG pipeline)
-        status: 'pending',
+        translatedText,
+        matchedCategoryId,
+        status,
+      },
+      include: {
+        matchedCategory: {
+          select: { categoryName: true, department: true },
+        },
       },
     });
 

@@ -1,5 +1,5 @@
 // CiviBridge — Express server entry point
-// Phase 5: Translation routes wired in.
+// Phase 7: RAG routes wired in.
 
 require('dotenv').config({ path: '../.env' });
 
@@ -9,6 +9,7 @@ const cors = require('cors');
 const authRoutes = require('./routes/authRoutes');
 const complaintRoutes = require('./routes/complaintRoutes');
 const translationRoutes = require('./routes/translationRoutes');
+const ragRoutes = require('./routes/ragRoutes');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -35,6 +36,9 @@ app.use('/complaints', complaintRoutes);
 
 // Translation — multilingual text translation and language detection
 app.use('/translate', translationRoutes);
+
+// RAG — vector category search and context-augmented complaint drafting assistant
+app.use('/rag', ragRoutes);
 
 // ── Start ────────────────────────────────────────────────────────────────────
 app.listen(PORT, () => {
