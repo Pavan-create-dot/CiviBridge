@@ -15,6 +15,17 @@ enum ComplaintStatus {
   pending
   classified
   routed
+  in_progress
+  resolved
+  rejected
+}
+
+// Enum for grievance triage priority levels
+enum Priority {
+  low
+  medium
+  high
+  urgent
 }
 
 // Enum for supported languages
@@ -62,8 +73,12 @@ model Complaint {
   detectedLanguage  String             // ISO language code detected at submission time
   translatedText    String?            // nullable — populated in Phase 5 (translation service)
   matchedCategoryId Int?               // nullable — populated in Phase 7 (RAG pipeline)
+  assignedDepartment String?           // nullable — populated in Phase 8 (Admin triage portal)
+  priority          Priority           @default(medium) // triage priority assignment
+  adminNotes        String?            // internal triage comments / action log
   status            ComplaintStatus    @default(pending)
   createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt @default(now())
 
   user              User               @relation(fields: [userId], references: [id])
   matchedCategory   GrievanceCategory? @relation(fields: [matchedCategoryId], references: [id])

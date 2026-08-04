@@ -21,9 +21,9 @@ const submitComplaintSchema = z.object({
 
 // Schema for PATCH /complaints/:id/status
 const updateStatusSchema = z.object({
-  status: z.enum(['pending', 'classified', 'routed'], {
+  status: z.enum(['pending', 'classified', 'routed', 'in_progress', 'resolved', 'rejected'], {
     required_error: 'status is required.',
-    message: "status must be one of: pending, classified, routed.",
+    message: 'status must be one of: pending, classified, routed, in_progress, resolved, rejected.',
   }),
 });
 

@@ -8,7 +8,11 @@ const {
   updateComplaintStatus,
 } = require('../controllers/complaintController');
 const { classifyComplaintById } = require('../controllers/ragController');
-const { submitComplaintSchema, updateStatusSchema, validate } = require('../validators/complaintValidators');
+const {
+  submitComplaintSchema,
+  updateStatusSchema,
+  validate,
+} = require('../validators/complaintValidators');
 const authenticateJWT = require('../middleware/authenticateJWT');
 const requireRole = require('../middleware/requireRole');
 
@@ -31,6 +35,11 @@ router.get('/:id', getComplaintById);
 router.post('/:id/classify', classifyComplaintById);
 
 // PATCH /complaints/:id/status — admin updates processing status
-router.patch('/:id/status', requireRole('admin'), validate(updateStatusSchema), updateComplaintStatus);
+router.patch(
+  '/:id/status',
+  requireRole('admin'),
+  validate(updateStatusSchema),
+  updateComplaintStatus
+);
 
 module.exports = router;

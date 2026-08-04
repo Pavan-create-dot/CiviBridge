@@ -114,7 +114,9 @@ async function getComplaintById(req, res) {
 
     // Citizens can only see their own complaints
     if (req.user.role !== 'admin' && complaint.userId !== req.user.id) {
-      return res.status(403).json({ error: 'Forbidden: you do not have access to this complaint.' });
+      return res
+        .status(403)
+        .json({ error: 'Forbidden: you do not have access to this complaint.' });
     }
 
     return res.status(200).json({ complaint });

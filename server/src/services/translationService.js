@@ -39,7 +39,9 @@ async function translateText(text, sourceLang, targetLang) {
   const targetName = LANGUAGE_NAMES[targetLang];
 
   if (!sourceName || !targetName) {
-    throw new Error(`Unsupported language code. Supported codes: ${Object.keys(LANGUAGE_NAMES).join(', ')}.`);
+    throw new Error(
+      `Unsupported language code. Supported codes: ${Object.keys(LANGUAGE_NAMES).join(', ')}.`
+    );
   }
 
   if (sourceLang === targetLang) {
@@ -92,7 +94,10 @@ async function detectLanguage(text) {
 
   try {
     // Strip potential markdown code fences defensively
-    const cleaned = raw.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '').trim();
+    const cleaned = raw
+      .replace(/^```(?:json)?\s*/i, '')
+      .replace(/\s*```$/, '')
+      .trim();
     const parsed = JSON.parse(cleaned);
     return {
       detectedLanguage: parsed.detectedLanguage || 'unknown',

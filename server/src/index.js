@@ -10,6 +10,7 @@ const authRoutes = require('./routes/authRoutes');
 const complaintRoutes = require('./routes/complaintRoutes');
 const translationRoutes = require('./routes/translationRoutes');
 const ragRoutes = require('./routes/ragRoutes');
+const triageRoutes = require('./routes/triageRoutes');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -40,7 +41,14 @@ app.use('/translate', translationRoutes);
 // RAG — vector category search and context-augmented complaint drafting assistant
 app.use('/rag', ragRoutes);
 
+// Triage — Phase 8: Admin & Department Triage Portal API
+app.use('/triage', triageRoutes);
+
 // ── Start ────────────────────────────────────────────────────────────────────
-app.listen(PORT, () => {
-  console.log(`CiviBridge API running on port ${PORT}`);
-});
+if (require.main === module) {
+  app.listen(PORT, () => {
+    console.log(`CiviBridge API running on port ${PORT}`);
+  });
+}
+
+module.exports = app;

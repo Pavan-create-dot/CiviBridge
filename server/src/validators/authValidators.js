@@ -7,9 +7,7 @@ const { z } = require('zod');
 // Role is intentionally excluded — public registration always creates citizens.
 // Admin accounts must be provisioned server-side (Phase 8 admin-provisioning path).
 const registerSchema = z.object({
-  email: z
-    .string({ required_error: 'Email is required.' })
-    .email('Must be a valid email address.'),
+  email: z.string({ required_error: 'Email is required.' }).email('Must be a valid email address.'),
   password: z
     .string({ required_error: 'Password is required.' })
     .min(8, 'Password must be at least 8 characters.'),
@@ -17,12 +15,17 @@ const registerSchema = z.object({
 
 // Schema for POST /auth/login
 const loginSchema = z.object({
-  email: z
-    .string({ required_error: 'Email is required.' })
-    .email('Must be a valid email address.'),
+  email: z.string({ required_error: 'Email is required.' }).email('Must be a valid email address.'),
+  password: z.string({ required_error: 'Password is required.' }).min(1, 'Password is required.'),
+});
+
+// Schema for POST /auth/register-admin (Phase 8: Admin provisioning)
+const registerAdminSchema = z.object({
+  email: z.string({ required_error: 'Email is required.' }).email('Must be a valid email address.'),
   password: z
     .string({ required_error: 'Password is required.' })
-    .min(1, 'Password is required.'),
+    .min(8, 'Password must be at least 8 characters.'),
+  adminSecret: z.string().optional(),
 });
 
 /**
@@ -49,4 +52,4 @@ function validate(schema) {
   };
 }
 
-module.exports = { registerSchema, loginSchema, validate };
+module.exports = { registerSchema, loginSchema, registerAdminSchema, validate };

@@ -26,13 +26,7 @@ const searchCategoriesSchema = z.object({
     .string({ required_error: 'query is required.' })
     .min(3, 'Query must be at least 3 characters.')
     .max(500, 'Query must not exceed 500 characters.'),
-  topK: z
-    .number()
-    .int()
-    .min(1)
-    .max(10)
-    .optional()
-    .default(3),
+  topK: z.number().int().min(1).max(10).optional().default(3),
 });
 
 module.exports = { draftSchema, searchCategoriesSchema, validate };

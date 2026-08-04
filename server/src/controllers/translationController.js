@@ -33,7 +33,9 @@ async function translate(req, res) {
       return res.status(400).json({ error: err.message });
     }
 
-    return res.status(502).json({ error: 'Translation service encountered an error. Please try again.' });
+    return res
+      .status(502)
+      .json({ error: 'Translation service encountered an error. Please try again.' });
   }
 }
 
@@ -58,7 +60,9 @@ async function detect(req, res) {
       return res.status(503).json({ error: 'Translation service is not configured.' });
     }
 
-    return res.status(502).json({ error: 'Language detection encountered an error. Please try again.' });
+    return res
+      .status(502)
+      .json({ error: 'Language detection encountered an error. Please try again.' });
   }
 }
 

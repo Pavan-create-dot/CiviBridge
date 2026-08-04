@@ -18,6 +18,7 @@ In Phase 1, CiviBridge consists of a clean, decoupled baseline repository struct
 ```
 
 ### Current Active Components
+
 1. **Client SPA (`client/`)**: Minimal React application built with Vite, serving the basic UI scaffold.
 2. **Server API (`server/src/index.js`)**: Express server exposing `/api/health` returning JSON status.
 
@@ -53,6 +54,7 @@ The full system architecture will incrementally integrate the following planned 
 ```
 
 ### Planned Layer Responsibilities
-* **Database Layer (`server/src/db` & `server/prisma`)** *(Phase 2)*: PostgreSQL database accessed via Prisma ORM for users, grievances, and department data.
-* **Authentication Middleware (`server/src/middleware`)** *(Phase 3)*: Role-Based Access Control (RBAC) via JSON Web Tokens (JWT).
-* **RAG & AI Module (`server/src/rag` & `services`)** *(Phase 6-7)*: ChromaDB vector retrieval and Gemini LLM prompt generation.
+
+- **Database Layer (`server/src/db` & `server/prisma`)** _(Phase 2)_: PostgreSQL database accessed via Prisma ORM for users, grievances, and department data.
+- **Authentication Middleware (`server/src/middleware`)** _(Phase 3)_: Role-Based Access Control (RBAC) via JSON Web Tokens (JWT).
+- **RAG & AI Module (`server/src/rag` & `services`)** _(Phase 6-7)_: ChromaDB vector retrieval and Gemini LLM prompt generation.

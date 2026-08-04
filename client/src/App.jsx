@@ -7,7 +7,8 @@ export default function App() {
         <div className="badge">Phase 1 — Scaffold Active</div>
         <h1 className="hero-title">CiviBridge</h1>
         <p className="hero-subtitle">
-          AI-powered Multilingual Regional Language Civic Grievance Assistant supporting English, Telugu, and Hindi.
+          AI-powered Multilingual Regional Language Civic Grievance Assistant supporting English,
+          Telugu, and Hindi.
         </p>
 
         <div className="features-grid">
@@ -21,7 +22,9 @@ export default function App() {
           </div>
           <div className="feature-card">
             <h3>Two-Sided Platform</h3>
-            <p>Empowering citizens to track grievances and department staff to triage efficiently.</p>
+            <p>
+              Empowering citizens to track grievances and department staff to triage efficiently.
+            </p>
           </div>
         </div>
       </main>

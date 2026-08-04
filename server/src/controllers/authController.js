@@ -86,4 +86,63 @@ async function login(req, res) {
   }
 }
 
-module.exports = { register, login };
+/**
+ * POST /auth/register-admin
+ * Phase 8: Provision a new admin account.
+ * Requires either an active admin session (req.user.role === 'admin') OR a valid admin secret
+ * matching ADMIN_PROVISION_SECRET or header 'x-admin-secret'.
+ *
+ * Expects req.body: { email, password, adminSecret? }
+ * Returns: 201 Created with new admin user data.
+ */
+async function registerAdmin(req, res) {
+  const { email, password, adminSecret } = req.body;
+  const providedSecret = adminSecret || req.headers['x-admin-secret'];
+  const expectedSecret = process.env.ADMIN_PROVISION_SECRET || 'civibridge-admin-secret-2026';
+
+  let isAuthenticatedAdmin = req.user && req.user.role === 'admin';
+  if (
+    !isAuthenticatedAdmin &&
+    req.headers['authorization'] &&
+    req.headers['authorization'].startsWith('Bearer ')
+  ) {
+    try {
+      const token = req.headers['authorization'].split(' ')[1];
+      const decoded = jwt.verify(token, process.env.JWT_SECRET);
+      if (decoded && decoded.role === 'admin') {
+        isAuthenticatedAdmin = true;
+      }
+    } catch (_) {
+      // invalid token ignored, fallback to secret check
+    }
+  }
+
+  const hasValidSecret = providedSecret && providedSecret === expectedSecret;
+
+  if (!isAuthenticatedAdmin && !hasValidSecret) {
+    return res
+      .status(403)
+      .json({ error: 'Forbidden: invalid admin provision secret or unauthorized.' });
+  }
+
+  try {
+    const existing = await prisma.user.findUnique({ where: { email } });
+    if (existing) {
+      return res.status(409).json({ error: 'An account with that email already exists.' });
+    }
+
+    const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
+
+    const user = await prisma.user.create({
+      data: { email, passwordHash, role: 'admin' },
+      select: { id: true, email: true, role: true, createdAt: true },
+    });
+
+    return res.status(201).json({ message: 'Admin account provisioned successfully.', user });
+  } catch (err) {
+    console.error('registerAdmin error:', err);
+    return res.status(500).json({ error: 'Internal server error.' });
+  }
+}
+
+module.exports = { register, login, registerAdmin };

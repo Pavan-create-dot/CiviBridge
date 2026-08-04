@@ -76,11 +76,7 @@ async function draftComplaintWithRAG({ prompt, language = 'en' }) {
       )
       .join('\n\n');
 
-    contextBlock = [
-      `RELEVANT CIVIC CATEGORY CONTEXT:`,
-      categoryDescriptions,
-      ``,
-    ].join('\n');
+    contextBlock = [`RELEVANT CIVIC CATEGORY CONTEXT:`, categoryDescriptions, ``].join('\n');
   }
 
   // 3. Construct Gemini RAG prompt
@@ -98,7 +94,9 @@ async function draftComplaintWithRAG({ prompt, language = 'en' }) {
     ``,
     `USER'S INITIAL NOTES:`,
     prompt,
-  ].filter(Boolean).join('\n');
+  ]
+    .filter(Boolean)
+    .join('\n');
 
   // 4. Generate content with Gemini
   const model = getModel();
