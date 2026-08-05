@@ -9,10 +9,5 @@ services:
     region: oregon
     repo: https://github.com/Pavan-create-dot/CiviBridge
     branch: main
-    buildCommand: cd server && npm ci
+    buildCommand: cd server && npm install
     startCommand: cd server && npm start
-    envVars:
-      - key: DATABASE_URL
-      - key: JWT_SECRET
-      - key: GEMINI_API_KEY
-      - key: ADMIN_PROVISION_SECRET
