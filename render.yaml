@@ -1,0 +1,18 @@
+# Render service manifest — basic configuration for deploying the server
+# Replace `repo` with your repository URL if you plan to use Render's YAML-managed services.
+
+services:
+  - type: web
+    name: civibridge-server
+    env: node
+    plan: starter
+    region: oregon
+    repo: https://github.com/Pavan-create-dot/CiviBridge
+    branch: main
+    buildCommand: cd server && npm ci
+    startCommand: cd server && npm start
+    envVars:
+      - key: DATABASE_URL
+      - key: JWT_SECRET
+      - key: GEMINI_API_KEY
+      - key: ADMIN_PROVISION_SECRET
