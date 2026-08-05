@@ -2,7 +2,7 @@
 
 ## Current Phase
 
-- **Active Phase:** Phase 9 — React Client Core UI & Components
+- **Active Phase:** Phase 10 — End-to-End Polish & Deployment
 
 ---
 
@@ -17,15 +17,11 @@
 - **Phase 6:** Vector Embedding & Semantic Search (Gemini + PostgreSQL)
 - **Phase 7:** RAG Pipeline & Gemini Engine Integration
 - **Phase 8:** Admin & Department Triage Portal API
+- **Phase 9:** React Client Core UI & Components
 
 ---
 
 ## Next Milestone
 
-- **Phase 9:** React Client Core UI & Components
-
----
-
-## Future Phases
-
 - **Phase 10:** End-to-End Polish & Deployment
+

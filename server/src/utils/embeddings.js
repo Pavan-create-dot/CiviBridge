@@ -20,6 +20,7 @@ function getClient() {
  * @returns {Promise<number[]>} embedding vector
  */
 async function embedText(text) {
+  // gemini-embedding-001 is the confirmed available embedding model for this API key
   const model = getClient().getGenerativeModel({ model: 'gemini-embedding-001' });
   const result = await model.embedContent(text);
   return result.embedding.values;
