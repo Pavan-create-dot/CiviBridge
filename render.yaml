@@ -9,5 +9,7 @@ services:
     region: oregon
     repo: https://github.com/Pavan-create-dot/CiviBridge
     branch: main
-    buildCommand: cd server && npm install
-    startCommand: cd server && npm start
+    rootDir: server
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /api/health

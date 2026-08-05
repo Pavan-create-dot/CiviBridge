@@ -20,7 +20,7 @@ In multilingual nations like India, millions of citizens struggle to navigate bu
 | **Backend**        | Node.js + Express       | RESTful API server handling request routing and AI orchestration.   |
 | **Database**       | PostgreSQL + Prisma ORM | Relational store for users, grievances, and department triage data. |
 | **Authentication** | JWT                     | Identifies user roles (Citizen / Department Admin) and permissions. |
-| **Vector Store**   | ChromaDB                | Stores vector embeddings for semantic document search (RAG).        |
+| **Vector Store**   | PostgreSQL (embedding)  | Stores vector embeddings in a Postgres `Float[]` column for semantic search. |
 | **Embeddings**     | Single Embedding Model  | Converts civic policy documents into dense vector representations.  |
 | **LLM**            | Gemini                  | Generates contextual grievance drafts and structured responses.     |
 | **Translation**    | Gemini                  | Translates text seamlessly between English, Telugu, and Hindi.      |
@@ -115,7 +115,7 @@ Run commands from the root directory:
 - **Phase 3: Authentication & User Management** ✅ _(Completed)_
 - **Phase 4: Core Grievance API** ✅ _(Completed)_
 - **Phase 5: Multilingual Translation Service** ✅ _(Completed)_
-- **Phase 6: ChromaDB Vector Store Integration** ✅ _(Completed)_
+-- **Phase 6: Vector Embedding Storage (Postgres)** ✅ _(Completed)_
 - **Phase 7: RAG Retrieval & Gemini Integration** ✅ _(Completed)_
 - **Phase 8: Admin Triage Portal API** ✅ _(Completed)_
 - **Phase 9: React Client Core UI** ⏳ _(Next)_

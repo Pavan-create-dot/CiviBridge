@@ -42,7 +42,7 @@ The full system architecture will incrementally integrate the following planned 
                |               |              |
                v               v              v
       +------------------+  +------+  +------------------+
-      | PostgreSQL (DB)  |  | JWT  |  | ChromaDB (Vector)|
+    | PostgreSQL (DB)  |  | JWT  |  | PostgreSQL (embeddings)|
       |  (via Prisma)    |  | Auth |  | (Semantic Search)|
       +------------------+  +------+  +------------------+
                                               |
@@ -57,4 +57,4 @@ The full system architecture will incrementally integrate the following planned 
 
 - **Database Layer (`server/src/db` & `server/prisma`)** _(Phase 2)_: PostgreSQL database accessed via Prisma ORM for users, grievances, and department data.
 - **Authentication Middleware (`server/src/middleware`)** _(Phase 3)_: Role-Based Access Control (RBAC) via JSON Web Tokens (JWT).
-- **RAG & AI Module (`server/src/rag` & `services`)** _(Phase 6-7)_: ChromaDB vector retrieval and Gemini LLM prompt generation.
+-- **RAG & AI Module (`server/src/rag` & `services`)** _(Phase 6-7)_: PostgreSQL-hosted embedding vectors and Gemini LLM prompt generation.

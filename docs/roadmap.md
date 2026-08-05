@@ -29,9 +29,9 @@ CiviBridge is developed phase-by-phase in self-contained, incremental milestones
 
 - Gemini API integration in `server/src/services/` for English, Telugu, and Hindi translations.
 
-### Phase 6: Vector Embedding & ChromaDB Integration
+### Phase 6: Vector Embedding & Postgres Storage
 
-- Set up ChromaDB vector database connection.
+- Store Gemini-generated embedding vectors directly in PostgreSQL (`Float[]` column on `GrievanceCategory`).
 - Document chunking and embedding generation pipeline for civic policy guidelines.
 
 ### Phase 7: RAG Retrieval & AI Assistant Engine

@@ -14,8 +14,9 @@ Alternatively, from the root you can add a Vercel project that runs `npm run bui
 Backend (Render)
 - Create a new Web Service on Render and connect your GitHub repository.
 - Use the `render.yaml` manifest (root of repo) if you want Render to auto-provision the service from the manifest.
-- Build Command: `cd server && npm install`
-- Start Command: `cd server && npm start`
+- The manifest now deploys from the `server/` folder with `rootDir: server`.
+- Build Command: `npm install`
+- Start Command: `npm start`
 - Required environment variables (set these in Render's dashboard `Environment` tab):
   - `DATABASE_URL` — Postgres connection string
   - `JWT_SECRET` — strong secret for signing JWTs

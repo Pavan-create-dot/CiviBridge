@@ -98,7 +98,11 @@ async function login(req, res) {
 async function registerAdmin(req, res) {
   const { email, password, adminSecret } = req.body;
   const providedSecret = adminSecret || req.headers['x-admin-secret'];
-  const expectedSecret = process.env.ADMIN_PROVISION_SECRET || 'civibridge-admin-secret-2026';
+  // Require an explicit ADMIN_PROVISION_SECRET in production. Allow the test/dev
+  // fallback only when not running in a production environment so test suites
+  // that supply the known default continue to work locally/CI.
+  const expectedSecret =
+    process.env.ADMIN_PROVISION_SECRET || (process.env.NODE_ENV === 'production' ? null : 'civibridge-admin-secret-2026');
 
   let isAuthenticatedAdmin = req.user && req.user.role === 'admin';
   if (
@@ -117,7 +121,7 @@ async function registerAdmin(req, res) {
     }
   }
 
-  const hasValidSecret = providedSecret && providedSecret === expectedSecret;
+  const hasValidSecret = providedSecret && expectedSecret && providedSecret === expectedSecret;
 
   if (!isAuthenticatedAdmin && !hasValidSecret) {
     return res
