@@ -1,7 +1,8 @@
 // CiviBridge — Express server entry point
 // Phase 7: RAG routes wired in.
 
-require('dotenv').config({ path: '../.env' });
+// Allow overriding the env file path for test runs via DOTENV_PATH
+require('dotenv').config({ path: process.env.DOTENV_PATH || '../.env' });
 
 const express = require('express');
 const cors = require('cors');
