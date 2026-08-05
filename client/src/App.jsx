@@ -4,11 +4,10 @@ export default function App() {
   return (
     <div className="app-container">
       <main className="hero-card">
-        <div className="badge">Phase 1 — Scaffold Active</div>
+        <div className="badge">Phase 9 — Client UI (Meridian Theme)</div>
         <h1 className="hero-title">CiviBridge</h1>
         <p className="hero-subtitle">
-          AI-powered Multilingual Regional Language Civic Grievance Assistant supporting English,
-          Telugu, and Hindi.
+          AI-powered Multilingual Civic Grievance Assistant — clean Meridian light theme.
         </p>
 
         <div className="features-grid">
