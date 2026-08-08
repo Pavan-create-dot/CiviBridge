@@ -1,4 +1,4 @@
-// Prisma seed script — Phase 6
+// Prisma seed script — seeds GrievanceCategory data and generates embeddings for semantic search.
 // Seeds GrievanceCategory data and generates embeddings for each category.
 // Run with: npx prisma db seed
 

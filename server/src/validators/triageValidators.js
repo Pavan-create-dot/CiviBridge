@@ -1,5 +1,4 @@
-// Input validators for admin triage routes using Zod
-// Phase 8: Admin & Department Triage Portal API
+// Input validators for admin triage routes using Zod.
 
 const { z } = require('zod');
 const { validate } = require('./authValidators');

@@ -33,7 +33,7 @@ In multilingual nations like India, millions of citizens struggle to navigate bu
 CiviBridge/
 ├── client/                     # React + Vite Single Page Application
 ├── server/                     # Node.js + Express REST API
-│   ├── prisma/                 # Prisma ORM schema & migrations (Phase 2)
+│   ├── prisma/                 # Prisma ORM schema & migrations
 │   └── src/
 │       ├── config/             # DB & environment configurations
 │       ├── controllers/        # Express request controllers
@@ -47,12 +47,11 @@ CiviBridge/
 │       └── index.js            # Express server entry point
 ├── docs/
 │   ├── architecture.md         # System design & layer specifications
-│   └── roadmap.md              # Phase-by-phase implementation roadmap
+│   └── roadmap.md              # Implementation roadmap
 ├── .github/
 │   └── workflows/
 │       └── ci.yml              # GitHub Actions CI workflow
 ├── README.md                   # Project overview & quickstart guide
-├── PROJECT_STATUS.md           # Milestone progress & phase tracker
 ├── .editorconfig               # Line ending & indentation formatting rules
 ├── .prettierrc                 # Code formatting rules
 ├── .env.example                # Sample environment configuration template
@@ -108,18 +107,17 @@ Run commands from the root directory:
 
 ---
 
-## 🗺️ Implementation Roadmap Summary
+## ✅ What's Built
 
-- **Phase 1: Repository Setup** ✅ _(Completed)_
-- **Phase 2: Database Schema & Prisma Setup** ✅ _(Completed)_
-- **Phase 3: Authentication & User Management** ✅ _(Completed)_
-- **Phase 4: Core Grievance API** ✅ _(Completed)_
-- **Phase 5: Multilingual Translation Service** ✅ _(Completed)_
--- **Phase 6: Vector Embedding Storage (Postgres)** ✅ _(Completed)_
-- **Phase 7: RAG Retrieval & Gemini Integration** ✅ _(Completed)_
-- **Phase 8: Admin Triage Portal API** ✅ _(Completed)_
-- **Phase 9: React Client Core UI** ⏳ _(Next)_
-- **Phase 10: E2E Polish & Deployment** ⏳
+- Repository setup with npm workspaces, ESLint, Prettier, GitHub Actions CI
+- PostgreSQL database schema via Prisma ORM with migration history
+- JWT authentication with citizen and admin roles
+- Grievance submission, retrieval, and status tracking API
+- Multilingual translation service (English, Telugu, Hindi) via Gemini
+- Vector embedding storage in PostgreSQL with cosine similarity search
+- RAG pipeline with Gemini for context-augmented formal complaint drafting
+- Admin triage portal API with filtering, pagination, auto-routing, and analytics
+- React client UI with citizen portal and administrator triage dashboard
 
 ---
 

@@ -1,4 +1,4 @@
-// Integration test for Phase 8: Admin & Department Triage Portal API
+// Integration tests for the Admin & Department Triage Portal API
 // Run with: node tests/triage.test.js
 
 const http = require('http');
@@ -51,7 +51,7 @@ function request(method, path, body = null, headers = {}) {
 }
 
 async function runTests() {
-  console.log('=== Phase 8 Admin Triage API Test Suite ===');
+  console.log('=== Admin Triage API Integration Test Suite ===');
 
   await new Promise((resolve) => {
     server = app.listen(0, () => {

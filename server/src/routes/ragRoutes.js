@@ -1,4 +1,4 @@
-// RAG routes — Phase 7: RAG Pipeline & Gemini Engine Integration
+// RAG routes — semantic category search and complaint drafting assistant.
 
 const { Router } = require('express');
 const { draftGrievance, searchCategories } = require('../controllers/ragController');

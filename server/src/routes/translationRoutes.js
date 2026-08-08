@@ -1,4 +1,4 @@
-// Translation routes — Phase 5: Multilingual Translation Service
+// Translation routes — multilingual translation and language detection endpoints.
 
 const { Router } = require('express');
 const { translate, detect } = require('../controllers/translationController');

@@ -5,7 +5,7 @@ const { z } = require('zod');
 
 // Schema for POST /auth/register
 // Role is intentionally excluded — public registration always creates citizens.
-// Admin accounts must be provisioned server-side (Phase 8 admin-provisioning path).
+// Admin accounts must be provisioned server-side via the admin-provisioning endpoint.
 const registerSchema = z.object({
   email: z.string({ required_error: 'Email is required.' }).email('Must be a valid email address.'),
   password: z

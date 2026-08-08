@@ -1,32 +1,8 @@
-# CiviBridge Architecture Specification
+# CiviBridge Architecture
 
-## 1. Current System Implementation (Phase 1)
+## System Overview
 
-In Phase 1, CiviBridge consists of a clean, decoupled baseline repository structure with client and server entry points.
-
-```
-+-------------------------------------------------------------+
-|                      React (Vite) SPA                       |
-|                 [client/src/App.jsx]                        |
-+------------------------------+------------------------------+
-                               | HTTP REST (/api/health)
-                               v
-+-------------------------------------------------------------+
-|                     Node.js + Express API                   |
-|                 [server/src/index.js]                       |
-+-------------------------------------------------------------+
-```
-
-### Current Active Components
-
-1. **Client SPA (`client/`)**: Minimal React application built with Vite, serving the basic UI scaffold.
-2. **Server API (`server/src/index.js`)**: Express server exposing `/api/health` returning JSON status.
-
----
-
-## 2. Planned System Components (Future Phases)
-
-The full system architecture will incrementally integrate the following planned modules in future phases:
+CiviBridge is a decoupled full-stack web application with a React SPA frontend and a Node.js Express backend.
 
 ```
 +-------------------------------------------------------------+
@@ -37,13 +13,13 @@ The full system architecture will incrementally integrate the following planned 
                                v
 +-------------------------------------------------------------+
 |                     Node.js + Express API                   |
-|  [Controllers] -> [Services] -> [Middleware] -> [RAG]        |
+|  [Controllers] -> [Services] -> [Middleware] -> [RAG]       |
 +--------------+---------------+--------------+---------------+
                |               |              |
                v               v              v
       +------------------+  +------+  +------------------+
-    | PostgreSQL (DB)  |  | JWT  |  | PostgreSQL (embeddings)|
-      |  (via Prisma)    |  | Auth |  | (Semantic Search)|
+      | PostgreSQL (DB)  |  | JWT  |  | PostgreSQL        |
+      |  (via Prisma)    |  | Auth |  | (Embeddings)      |
       +------------------+  +------+  +------------------+
                                               |
                                               v
@@ -53,8 +29,12 @@ The full system architecture will incrementally integrate the following planned 
                                     +------------------+
 ```
 
-### Planned Layer Responsibilities
+---
 
-- **Database Layer (`server/src/db` & `server/prisma`)** _(Phase 2)_: PostgreSQL database accessed via Prisma ORM for users, grievances, and department data.
-- **Authentication Middleware (`server/src/middleware`)** _(Phase 3)_: Role-Based Access Control (RBAC) via JSON Web Tokens (JWT).
--- **RAG & AI Module (`server/src/rag` & `services`)** _(Phase 6-7)_: PostgreSQL-hosted embedding vectors and Gemini LLM prompt generation.
+## Layer Responsibilities
+
+- **Client SPA (`client/`)**: React application built with Vite. Provides the citizen grievance drafting interface and the admin triage dashboard.
+- **Server API (`server/src/index.js`)**: Express server with JWT-protected route groups for auth, complaints, translation, RAG, and triage.
+- **Database Layer (`server/src/db` & `server/prisma`)**: PostgreSQL accessed via Prisma ORM for users, grievances, categories, and embedding vectors.
+- **Authentication Middleware (`server/src/middleware`)**: Role-Based Access Control (RBAC) via JSON Web Tokens (JWT). Citizens and admins have distinct permissions.
+- **RAG & AI Module (`server/src/rag` & `services`)**: PostgreSQL-hosted embedding vectors queried by cosine similarity. Gemini LLM generates formal complaint drafts and auto-routes complaints to departments.
