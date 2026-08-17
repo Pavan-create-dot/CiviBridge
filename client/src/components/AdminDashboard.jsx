@@ -7,6 +7,15 @@ import {
   autoRouteComplaint,
   getDepartments,
 } from '../services/api';
+import { STATUS_OPTIONS, PRIORITY_OPTIONS } from '../constants';
+import {
+  StatusBadge,
+  PriorityBadge,
+  LanguageTag,
+  FilterSelect,
+  OptionSelect,
+} from './common/Badges';
+import { formatDate, formatScorePercent, complaintDepartment } from '../utils/format';
 
 export default function AdminDashboard() {
   // Analytics Stats State
@@ -84,7 +93,7 @@ export default function AdminDashboard() {
     setSelectedComplaint(complaint);
     setTriageStatus(complaint.status);
     setTriagePriority(complaint.priority);
-    setTriageDept(complaint.assignedDepartment || complaint.matchedCategory?.department || '');
+    setTriageDept(complaintDepartment(complaint));
     setTriageCategoryId(complaint.matchedCategoryId ? String(complaint.matchedCategoryId) : '');
     setTriageNotes(complaint.adminNotes || '');
     setModalMessage('');
@@ -136,7 +145,9 @@ export default function AdminDashboard() {
       setTriageStatus(res.complaint.status);
       setTriageDept(res.complaint.assignedDepartment || '');
       setTriageCategoryId(res.complaint.matchedCategoryId ? String(res.complaint.matchedCategoryId) : '');
-      setModalMessage(`Auto-routed to ${res.topMatch.category.department} (Match Score: ${(res.topMatch.score * 100).toFixed(0)}%)`);
+      setModalMessage(
+        `Auto-routed to ${res.topMatch.category.department} (Match Score: ${formatScorePercent(res.topMatch.score)})`
+      );
       
       fetchComplaintsData();
       fetchInitialData();
@@ -201,30 +212,26 @@ export default function AdminDashboard() {
           </div>
 
           <div className="filters-wrap">
-            <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
-              <option value="">All Statuses</option>
-              <option value="pending">Pending</option>
-              <option value="classified">Classified</option>
-              <option value="routed">Routed</option>
-              <option value="in_progress">In Progress</option>
-              <option value="resolved">Resolved</option>
-              <option value="rejected">Rejected</option>
-            </select>
+            <FilterSelect
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              options={STATUS_OPTIONS}
+              allLabel="All Statuses"
+            />
 
-            <select value={priorityFilter} onChange={(e) => setPriorityFilter(e.target.value)}>
-              <option value="">All Priorities</option>
-              <option value="low">Low</option>
-              <option value="medium">Medium</option>
-              <option value="high">High</option>
-              <option value="urgent">Urgent</option>
-            </select>
+            <FilterSelect
+              value={priorityFilter}
+              onChange={(e) => setPriorityFilter(e.target.value)}
+              options={PRIORITY_OPTIONS}
+              allLabel="All Priorities"
+            />
 
-            <select value={deptFilter} onChange={(e) => setDeptFilter(e.target.value)}>
-              <option value="">All Departments</option>
-              {availableDepartments.map((d) => (
-                <option key={d} value={d}>{d}</option>
-              ))}
-            </select>
+            <FilterSelect
+              value={deptFilter}
+              onChange={(e) => setDeptFilter(e.target.value)}
+              options={availableDepartments.map((d) => ({ value: d, label: d }))}
+              allLabel="All Departments"
+            />
           </div>
         </form>
       </div>
@@ -255,20 +262,20 @@ export default function AdminDashboard() {
                   <tr key={c.id}>
                     <td><strong>#{c.id}</strong></td>
                     <td>{c.user?.email || 'Citizen'}</td>
-                    <td><span className="lang-pill">{c.detectedLanguage.toUpperCase()}</span></td>
+                    <td><LanguageTag language={c.detectedLanguage} /></td>
                     <td>
                       <div className="dept-cell">
                         <span className="cat">{c.matchedCategory?.categoryName || 'Unclassified'}</span>
-                        <span className="dept">{c.assignedDepartment || c.matchedCategory?.department || 'Unassigned'}</span>
+                        <span className="dept">{complaintDepartment(c, 'Unassigned')}</span>
                       </div>
                     </td>
                     <td>
-                      <span className={`priority-badge priority-${c.priority}`}>{c.priority}</span>
+                      <PriorityBadge priority={c.priority} />
                     </td>
                     <td>
-                      <span className={`status-badge status-${c.status}`}>{c.status.replace('_', ' ')}</span>
+                      <StatusBadge status={c.status} />
                     </td>
-                    <td>{new Date(c.createdAt).toLocaleDateString()}</td>
+                    <td>{formatDate(c.createdAt)}</td>
                     <td>
                       <button className="btn-secondary btn-sm" onClick={() => openTriageModal(c)}>
                         Triage / Route
@@ -373,24 +380,20 @@ export default function AdminDashboard() {
 
                   <div className="form-group">
                     <label>Triage Priority Level</label>
-                    <select value={triagePriority} onChange={(e) => setTriagePriority(e.target.value)}>
-                      <option value="low">Low</option>
-                      <option value="medium">Medium</option>
-                      <option value="high">High</option>
-                      <option value="urgent">Urgent</option>
-                    </select>
+                    <OptionSelect
+                      value={triagePriority}
+                      onChange={(e) => setTriagePriority(e.target.value)}
+                      options={PRIORITY_OPTIONS}
+                    />
                   </div>
 
                   <div className="form-group">
                     <label>Resolution Status</label>
-                    <select value={triageStatus} onChange={(e) => setTriageStatus(e.target.value)}>
-                      <option value="pending">Pending</option>
-                      <option value="classified">Classified</option>
-                      <option value="routed">Routed</option>
-                      <option value="in_progress">In Progress</option>
-                      <option value="resolved">Resolved</option>
-                      <option value="rejected">Rejected</option>
-                    </select>
+                    <OptionSelect
+                      value={triageStatus}
+                      onChange={(e) => setTriageStatus(e.target.value)}
+                      options={STATUS_OPTIONS}
+                    />
                   </div>
 
                   <div className="form-group">

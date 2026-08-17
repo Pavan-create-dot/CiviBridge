@@ -8,11 +8,8 @@ const {
   autoRouteComplaint,
   getDepartments,
 } = require('../controllers/triageController');
-const {
-  triageQuerySchema,
-  updateTriageSchema,
-  validate,
-} = require('../validators/triageValidators');
+const { triageQuerySchema, updateTriageSchema } = require('../validators/triageValidators');
+const validate = require('../middleware/validate');
 const authenticateJWT = require('../middleware/authenticateJWT');
 const requireRole = require('../middleware/requireRole');
 

@@ -36,105 +36,83 @@ async function request(endpoint, options = {}) {
   return data;
 }
 
-// ── Auth Endpoints ────────────────────────────────────────────────────────────
-export async function loginUser(email, password) {
-  return request('/auth/login', {
-    method: 'POST',
-    body: JSON.stringify({ email, password }),
-  });
-}
+const get = (endpoint) => request(endpoint, { method: 'GET' });
 
-export async function registerUser(email, password) {
-  return request('/auth/register', {
-    method: 'POST',
-    body: JSON.stringify({ email, password }),
-  });
-}
+const post = (endpoint, body) =>
+  request(endpoint, { method: 'POST', ...(body ? { body: JSON.stringify(body) } : {}) });
 
-export async function registerAdmin(email, password, adminSecret) {
-  return request('/auth/register-admin', {
-    method: 'POST',
-    body: JSON.stringify({ email, password, adminSecret }),
-  });
-}
+const patch = (endpoint, body) =>
+  request(endpoint, { method: 'PATCH', body: JSON.stringify(body) });
 
-// ── Complaints Endpoints (Citizen) ───────────────────────────────────────────
-export async function submitComplaint(rawText, detectedLanguage) {
-  return request('/complaints', {
-    method: 'POST',
-    body: JSON.stringify({ rawText, detectedLanguage }),
-  });
-}
-
-export async function getMyComplaints() {
-  return request('/complaints/me', {
-    method: 'GET',
-  });
-}
-
-export async function getComplaintById(id) {
-  return request(`/complaints/${id}`, {
-    method: 'GET',
-  });
-}
-
-// ── Translation & RAG Services ───────────────────────────────────────────────
-export async function translateText(text, sourceLang, targetLang) {
-  return request('/translate', {
-    method: 'POST',
-    body: JSON.stringify({ text, sourceLang, targetLang }),
-  });
-}
-
-export async function detectLanguage(text) {
-  return request('/translate/detect', {
-    method: 'POST',
-    body: JSON.stringify({ text }),
-  });
-}
-
-export async function draftComplaintWithRAG(prompt, language) {
-  return request('/rag/draft', {
-    method: 'POST',
-    body: JSON.stringify({ prompt, language }),
-  });
-}
-
-// ── Triage Endpoints (Admin) ──────────────────────────────────────────────────
-export async function getTriageComplaints(params = {}) {
+/**
+ * Serialise a params object into a query string, skipping empty values.
+ */
+function buildQueryString(params) {
   const query = new URLSearchParams();
   Object.entries(params).forEach(([key, val]) => {
     if (val !== undefined && val !== null && val !== '') {
       query.append(key, val);
     }
   });
-  const queryString = query.toString() ? `?${query.toString()}` : '';
-  return request(`/triage/complaints${queryString}`, {
-    method: 'GET',
-  });
+  return query.toString() ? `?${query.toString()}` : '';
 }
 
-export async function getTriageStats() {
-  return request('/triage/stats', {
-    method: 'GET',
-  });
+// ── Auth Endpoints ────────────────────────────────────────────────────────────
+export function loginUser(email, password) {
+  return post('/auth/login', { email, password });
 }
 
-export async function updateTriageComplaint(id, triageData) {
-  return request(`/triage/complaints/${id}`, {
-    method: 'PATCH',
-    body: JSON.stringify(triageData),
-  });
+export function registerUser(email, password) {
+  return post('/auth/register', { email, password });
 }
 
-export async function autoRouteComplaint(id) {
-  return request(`/triage/complaints/${id}/auto-route`, {
-    method: 'POST',
-  });
+export function registerAdmin(email, password, adminSecret) {
+  return post('/auth/register-admin', { email, password, adminSecret });
 }
 
-export async function getDepartments() {
-  return request('/triage/departments', {
-    method: 'GET',
-  });
+// ── Complaints Endpoints (Citizen) ───────────────────────────────────────────
+export function submitComplaint(rawText, detectedLanguage) {
+  return post('/complaints', { rawText, detectedLanguage });
+}
+
+export function getMyComplaints() {
+  return get('/complaints/me');
+}
+
+export function getComplaintById(id) {
+  return get(`/complaints/${id}`);
+}
+
+// ── Translation & RAG Services ───────────────────────────────────────────────
+export function translateText(text, sourceLang, targetLang) {
+  return post('/translate', { text, sourceLang, targetLang });
+}
+
+export function detectLanguage(text) {
+  return post('/translate/detect', { text });
+}
+
+export function draftComplaintWithRAG(prompt, language) {
+  return post('/rag/draft', { prompt, language });
+}
+
+// ── Triage Endpoints (Admin) ──────────────────────────────────────────────────
+export function getTriageComplaints(params = {}) {
+  return get(`/triage/complaints${buildQueryString(params)}`);
+}
+
+export function getTriageStats() {
+  return get('/triage/stats');
+}
+
+export function updateTriageComplaint(id, triageData) {
+  return patch(`/triage/complaints/${id}`, triageData);
+}
+
+export function autoRouteComplaint(id) {
+  return post(`/triage/complaints/${id}/auto-route`);
+}
+
+export function getDepartments() {
+  return get('/triage/departments');
 }

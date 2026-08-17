@@ -6,8 +6,8 @@ const {
   registerSchema,
   loginSchema,
   registerAdminSchema,
-  validate,
 } = require('../validators/authValidators');
+const validate = require('../middleware/validate');
 
 const router = Router();
 

@@ -8,11 +8,8 @@ const {
   updateComplaintStatus,
 } = require('../controllers/complaintController');
 const { classifyComplaintById } = require('../controllers/ragController');
-const {
-  submitComplaintSchema,
-  updateStatusSchema,
-  validate,
-} = require('../validators/complaintValidators');
+const { submitComplaintSchema, updateStatusSchema } = require('../validators/complaintValidators');
+const validate = require('../middleware/validate');
 const authenticateJWT = require('../middleware/authenticateJWT');
 const requireRole = require('../middleware/requireRole');
 

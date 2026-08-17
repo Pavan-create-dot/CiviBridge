@@ -2,7 +2,8 @@
 
 const { Router } = require('express');
 const { draftGrievance, searchCategories } = require('../controllers/ragController');
-const { draftSchema, searchCategoriesSchema, validate } = require('../validators/ragValidators');
+const { draftSchema, searchCategoriesSchema } = require('../validators/ragValidators');
+const validate = require('../middleware/validate');
 const authenticateJWT = require('../middleware/authenticateJWT');
 
 const router = Router();

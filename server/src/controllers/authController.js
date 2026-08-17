@@ -4,15 +4,44 @@
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const prisma = require('../db/prismaClient');
+const { sendServerError } = require('../utils/httpHelpers');
 
 // Number of bcrypt salt rounds — 12 is a good balance of security and speed
 const SALT_ROUNDS = 12;
+
+// Fields that are safe to return to clients — never includes passwordHash
+const PUBLIC_USER_SELECT = { id: true, email: true, role: true, createdAt: true };
+
+/**
+ * Create a user with the given role, rejecting duplicate emails.
+ *
+ * @param {import('express').Response} res
+ * @param {{ email: string, password: string, role: string, message: string }} params
+ * @returns {Promise<import('express').Response>}
+ */
+async function createUserAccount(res, { email, password, role, message }) {
+  // Check for duplicate email before attempting to insert
+  const existing = await prisma.user.findUnique({ where: { email } });
+  if (existing) {
+    return res.status(409).json({ error: 'An account with that email already exists.' });
+  }
+
+  // Hash the password; the plain-text value is not stored anywhere
+  const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
+
+  const user = await prisma.user.create({
+    data: { email, passwordHash, role },
+    select: PUBLIC_USER_SELECT,
+  });
+
+  return res.status(201).json({ message, user });
+}
 
 /**
  * POST /auth/register
  * Creates a new user account with a hashed password.
  *
- * Expects req.body: { email, password, role? }
+ * Expects req.body: { email, password }
  * Returns: 201 Created with the new user's public fields (no password hash).
  */
 async function register(req, res) {
@@ -22,24 +51,14 @@ async function register(req, res) {
   const { email, password } = req.body;
 
   try {
-    // Check for duplicate email before attempting to insert
-    const existing = await prisma.user.findUnique({ where: { email } });
-    if (existing) {
-      return res.status(409).json({ error: 'An account with that email already exists.' });
-    }
-
-    // Hash the password; the plain-text value is not stored anywhere
-    const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
-
-    const user = await prisma.user.create({
-      data: { email, passwordHash, role: 'citizen' }, // role is always forced server-side
-      select: { id: true, email: true, role: true, createdAt: true }, // never return passwordHash
+    return await createUserAccount(res, {
+      email,
+      password,
+      role: 'citizen',
+      message: 'Account created successfully.',
     });
-
-    return res.status(201).json({ message: 'Account created successfully.', user });
   } catch (err) {
-    console.error('register error:', err);
-    return res.status(500).json({ error: 'Internal server error.' });
+    return sendServerError(res, 'register', err);
   }
 }
 
@@ -81,8 +100,29 @@ async function login(req, res) {
       user: { id: user.id, email: user.email, role: user.role },
     });
   } catch (err) {
-    console.error('login error:', err);
-    return res.status(500).json({ error: 'Internal server error.' });
+    return sendServerError(res, 'login', err);
+  }
+}
+
+/**
+ * Determine whether the request comes from an authenticated admin, either via
+ * req.user (set by authenticateJWT) or a Bearer token on the request itself.
+ *
+ * @param {import('express').Request} req
+ * @returns {boolean}
+ */
+function isAdminRequest(req) {
+  if (req.user && req.user.role === 'admin') return true;
+
+  const authHeader = req.headers['authorization'];
+  if (!authHeader || !authHeader.startsWith('Bearer ')) return false;
+
+  try {
+    const decoded = jwt.verify(authHeader.split(' ')[1], process.env.JWT_SECRET);
+    return Boolean(decoded && decoded.role === 'admin');
+  } catch {
+    // invalid token ignored, fallback to secret check
+    return false;
   }
 }
 
@@ -102,50 +142,26 @@ async function registerAdmin(req, res) {
   // fallback only when not running in a production environment so test suites
   // that supply the known default continue to work locally/CI.
   const expectedSecret =
-    process.env.ADMIN_PROVISION_SECRET || (process.env.NODE_ENV === 'production' ? null : 'civibridge-admin-secret-2026');
-
-  let isAuthenticatedAdmin = req.user && req.user.role === 'admin';
-  if (
-    !isAuthenticatedAdmin &&
-    req.headers['authorization'] &&
-    req.headers['authorization'].startsWith('Bearer ')
-  ) {
-    try {
-      const token = req.headers['authorization'].split(' ')[1];
-      const decoded = jwt.verify(token, process.env.JWT_SECRET);
-      if (decoded && decoded.role === 'admin') {
-        isAuthenticatedAdmin = true;
-      }
-    } catch (_) {
-      // invalid token ignored, fallback to secret check
-    }
-  }
+    process.env.ADMIN_PROVISION_SECRET ||
+    (process.env.NODE_ENV === 'production' ? null : 'civibridge-admin-secret-2026');
 
   const hasValidSecret = providedSecret && expectedSecret && providedSecret === expectedSecret;
 
-  if (!isAuthenticatedAdmin && !hasValidSecret) {
+  if (!isAdminRequest(req) && !hasValidSecret) {
     return res
       .status(403)
       .json({ error: 'Forbidden: invalid admin provision secret or unauthorized.' });
   }
 
   try {
-    const existing = await prisma.user.findUnique({ where: { email } });
-    if (existing) {
-      return res.status(409).json({ error: 'An account with that email already exists.' });
-    }
-
-    const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
-
-    const user = await prisma.user.create({
-      data: { email, passwordHash, role: 'admin' },
-      select: { id: true, email: true, role: true, createdAt: true },
+    return await createUserAccount(res, {
+      email,
+      password,
+      role: 'admin',
+      message: 'Admin account provisioned successfully.',
     });
-
-    return res.status(201).json({ message: 'Admin account provisioned successfully.', user });
   } catch (err) {
-    console.error('registerAdmin error:', err);
-    return res.status(500).json({ error: 'Internal server error.' });
+    return sendServerError(res, 'registerAdmin', err);
   }
 }
 

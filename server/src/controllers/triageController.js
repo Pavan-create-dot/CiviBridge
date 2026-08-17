@@ -1,7 +1,26 @@
 // Triage controller — provides department admins with complaint listing, stats, triage updating, and auto-routing.
 
 const prisma = require('../db/prismaClient');
+const { TRIAGE_INCLUDE } = require('../db/complaintIncludes');
 const { classifyComplaintText } = require('../rag/ragService');
+const { sendServerError, parseIdParam } = require('../utils/httpHelpers');
+const { COMPLAINT_STATUSES, COMPLAINT_PRIORITIES } = require('../constants');
+
+/**
+ * Build a zero-filled counter map and populate it from a Prisma groupBy result.
+ *
+ * @param {string[]} keys - all expected keys, so absent groups report 0
+ * @param {Array<object>} groups - groupBy rows
+ * @param {string} field - the grouped field name
+ * @returns {Record<string, number>}
+ */
+function countsByField(keys, groups, field) {
+  const counts = Object.fromEntries(keys.map((key) => [key, 0]));
+  groups.forEach((group) => {
+    counts[group[field]] = group._count[field];
+  });
+  return counts;
+}
 
 /**
  * GET /triage/complaints
@@ -49,11 +68,9 @@ async function getTriageComplaints(req, res) {
     }
 
     if (search) {
-      const searchCondition = [
-        { rawText: { contains: search, mode: 'insensitive' } },
-        { translatedText: { contains: search, mode: 'insensitive' } },
-        { adminNotes: { contains: search, mode: 'insensitive' } },
-      ];
+      const searchCondition = ['rawText', 'translatedText', 'adminNotes'].map((field) => ({
+        [field]: { contains: search, mode: 'insensitive' },
+      }));
 
       if (where.OR) {
         // Combine department and search filters if both are present
@@ -71,14 +88,7 @@ async function getTriageComplaints(req, res) {
         skip,
         take: limitNum,
         orderBy: { [sortBy]: sortOrder },
-        include: {
-          user: {
-            select: { id: true, email: true },
-          },
-          matchedCategory: {
-            select: { id: true, categoryName: true, department: true },
-          },
-        },
+        include: TRIAGE_INCLUDE,
       }),
     ]);
 
@@ -92,8 +102,7 @@ async function getTriageComplaints(req, res) {
       },
     });
   } catch (err) {
-    console.error('getTriageComplaints error:', err);
-    return res.status(500).json({ error: 'Internal server error.' });
+    return sendServerError(res, 'getTriageComplaints', err);
   }
 }
 
@@ -104,53 +113,21 @@ async function getTriageComplaints(req, res) {
  */
 async function getTriageStats(req, res) {
   try {
-    const totalComplaints = await prisma.complaint.count();
+    const [totalComplaints, statusGroups, priorityGroups, complaintsWithCategory] =
+      await Promise.all([
+        prisma.complaint.count(),
+        prisma.complaint.groupBy({ by: ['status'], _count: { status: true } }),
+        prisma.complaint.groupBy({ by: ['priority'], _count: { priority: true } }),
+        prisma.complaint.findMany({
+          select: {
+            assignedDepartment: true,
+            matchedCategory: { select: { department: true } },
+          },
+        }),
+      ]);
 
-    // Status aggregation
-    const statusGroups = await prisma.complaint.groupBy({
-      by: ['status'],
-      _count: { status: true },
-    });
-
-    const statusCounts = {
-      pending: 0,
-      classified: 0,
-      routed: 0,
-      in_progress: 0,
-      resolved: 0,
-      rejected: 0,
-    };
-
-    statusGroups.forEach((g) => {
-      statusCounts[g.status] = g._count.status;
-    });
-
-    // Priority aggregation
-    const priorityGroups = await prisma.complaint.groupBy({
-      by: ['priority'],
-      _count: { priority: true },
-    });
-
-    const priorityCounts = {
-      low: 0,
-      medium: 0,
-      high: 0,
-      urgent: 0,
-    };
-
-    priorityGroups.forEach((g) => {
-      priorityCounts[g.priority] = g._count.priority;
-    });
-
-    // Department aggregation
-    const complaintsWithCategory = await prisma.complaint.findMany({
-      select: {
-        assignedDepartment: true,
-        matchedCategory: {
-          select: { department: true },
-        },
-      },
-    });
+    const statusCounts = countsByField(COMPLAINT_STATUSES, statusGroups, 'status');
+    const priorityCounts = countsByField(COMPLAINT_PRIORITIES, priorityGroups, 'priority');
 
     const departmentCounts = {};
     complaintsWithCategory.forEach((c) => {
@@ -173,8 +150,7 @@ async function getTriageStats(req, res) {
       },
     });
   } catch (err) {
-    console.error('getTriageStats error:', err);
-    return res.status(500).json({ error: 'Internal server error.' });
+    return sendServerError(res, 'getTriageStats', err);
   }
 }
 
@@ -185,11 +161,8 @@ async function getTriageStats(req, res) {
  * Admin role required.
  */
 async function updateTriageComplaint(req, res) {
-  const id = parseInt(req.params.id, 10);
-
-  if (isNaN(id)) {
-    return res.status(400).json({ error: 'Invalid complaint ID.' });
-  }
+  const id = parseIdParam(req, res);
+  if (id === null) return;
 
   const { assignedDepartment, priority, status, matchedCategoryId, adminNotes } = req.body;
 
@@ -201,18 +174,14 @@ async function updateTriageComplaint(req, res) {
 
     const updateData = {};
 
-    if (assignedDepartment !== undefined) {
-      updateData.assignedDepartment = assignedDepartment;
-    }
-    if (priority !== undefined) {
-      updateData.priority = priority;
-    }
-    if (status !== undefined) {
-      updateData.status = status;
-    }
-    if (adminNotes !== undefined) {
-      updateData.adminNotes = adminNotes;
-    }
+    // Only fields explicitly present in the payload are updated
+    Object.entries({ assignedDepartment, priority, status, adminNotes }).forEach(
+      ([field, value]) => {
+        if (value !== undefined) {
+          updateData[field] = value;
+        }
+      }
+    );
 
     if (matchedCategoryId !== undefined) {
       if (matchedCategoryId === null) {
@@ -237,14 +206,7 @@ async function updateTriageComplaint(req, res) {
     const complaint = await prisma.complaint.update({
       where: { id },
       data: updateData,
-      include: {
-        user: {
-          select: { id: true, email: true },
-        },
-        matchedCategory: {
-          select: { id: true, categoryName: true, department: true },
-        },
-      },
+      include: TRIAGE_INCLUDE,
     });
 
     return res.status(200).json({
@@ -252,8 +214,7 @@ async function updateTriageComplaint(req, res) {
       complaint,
     });
   } catch (err) {
-    console.error('updateTriageComplaint error:', err);
-    return res.status(500).json({ error: 'Internal server error.' });
+    return sendServerError(res, 'updateTriageComplaint', err);
   }
 }
 
@@ -263,11 +224,8 @@ async function updateTriageComplaint(req, res) {
  * Admin role required.
  */
 async function autoRouteComplaint(req, res) {
-  const id = parseInt(req.params.id, 10);
-
-  if (isNaN(id)) {
-    return res.status(400).json({ error: 'Invalid complaint ID.' });
-  }
+  const id = parseIdParam(req, res);
+  if (id === null) return;
 
   try {
     const complaint = await prisma.complaint.findUnique({ where: { id } });
@@ -297,14 +255,7 @@ async function autoRouteComplaint(req, res) {
     const updatedComplaint = await prisma.complaint.update({
       where: { id },
       data: updateData,
-      include: {
-        user: {
-          select: { id: true, email: true },
-        },
-        matchedCategory: {
-          select: { id: true, categoryName: true, department: true },
-        },
-      },
+      include: TRIAGE_INCLUDE,
     });
 
     return res.status(200).json({
@@ -313,8 +264,7 @@ async function autoRouteComplaint(req, res) {
       complaint: updatedComplaint,
     });
   } catch (err) {
-    console.error('autoRouteComplaint error:', err);
-    return res.status(500).json({ error: 'Internal server error.' });
+    return sendServerError(res, 'autoRouteComplaint', err);
   }
 }
 
@@ -354,8 +304,7 @@ async function getDepartments(req, res) {
       categories,
     });
   } catch (err) {
-    console.error('getDepartments error:', err);
-    return res.status(500).json({ error: 'Internal server error.' });
+    return sendServerError(res, 'getDepartments', err);
   }
 }
 

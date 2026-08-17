@@ -3,6 +3,8 @@
 const prisma = require('../db/prismaClient');
 const { findSimilarCategories } = require('../rag/vectorStore');
 const { draftComplaintWithRAG, classifyComplaintText } = require('../rag/ragService');
+const { roundScore, formatCategoryMatches } = require('../utils/categoryMatches');
+const { sendServerError, parseIdParam, canAccessComplaint } = require('../utils/httpHelpers');
 
 /**
  * POST /rag/draft
@@ -21,8 +23,7 @@ async function draftGrievance(req, res) {
       ...result,
     });
   } catch (err) {
-    console.error('draftGrievance error:', err);
-    return res.status(500).json({ error: 'Failed to generate complaint draft.' });
+    return sendServerError(res, 'draftGrievance', err, 'Failed to generate complaint draft.');
   }
 }
 
@@ -45,13 +46,12 @@ async function searchCategories(req, res) {
         department: m.category.department,
         description: m.category.description,
       },
-      score: Number(m.score.toFixed(4)),
+      score: roundScore(m.score),
     }));
 
     return res.status(200).json({ query, results });
   } catch (err) {
-    console.error('searchCategories error:', err);
-    return res.status(500).json({ error: 'Failed to search categories.' });
+    return sendServerError(res, 'searchCategories', err, 'Failed to search categories.');
   }
 }
 
@@ -63,11 +63,8 @@ async function searchCategories(req, res) {
  * Returns: 200 OK with updated complaint and matched category details.
  */
 async function classifyComplaintById(req, res) {
-  const id = parseInt(req.params.id, 10);
-
-  if (isNaN(id)) {
-    return res.status(400).json({ error: 'Invalid complaint ID.' });
-  }
+  const id = parseIdParam(req, res);
+  if (id === null) return;
 
   try {
     const complaint = await prisma.complaint.findUnique({ where: { id } });
@@ -76,8 +73,7 @@ async function classifyComplaintById(req, res) {
       return res.status(404).json({ error: 'Complaint not found.' });
     }
 
-    // Citizens can only classify their own complaints; admins can classify any.
-    if (req.user.role !== 'admin' && complaint.userId !== req.user.id) {
+    if (!canAccessComplaint(req.user, complaint)) {
       return res.status(403).json({ error: 'Forbidden: access denied.' });
     }
 
@@ -104,17 +100,11 @@ async function classifyComplaintById(req, res) {
     return res.status(200).json({
       message: 'Complaint successfully classified using RAG.',
       complaint: updatedComplaint,
-      confidenceScore: Number(topMatch.score.toFixed(4)),
-      allMatches: matches.map((m) => ({
-        id: m.category.id,
-        categoryName: m.category.categoryName,
-        department: m.category.department,
-        score: Number(m.score.toFixed(4)),
-      })),
+      confidenceScore: roundScore(topMatch.score),
+      allMatches: formatCategoryMatches(matches),
     });
   } catch (err) {
-    console.error('classifyComplaintById error:', err);
-    return res.status(500).json({ error: 'Internal server error.' });
+    return sendServerError(res, 'classifyComplaintById', err);
   }
 }
 

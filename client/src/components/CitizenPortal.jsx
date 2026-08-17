@@ -1,12 +1,9 @@
 // CitizenPortal component — Multilingual RAG grievance drafting and status tracking view
 import React, { useState, useEffect } from 'react';
 import { draftComplaintWithRAG, submitComplaint, getMyComplaints } from '../services/api';
-
-const LANGUAGES = [
-  { code: 'en', label: 'English (English)' },
-  { code: 'te', label: 'Telugu (తెలుగు)' },
-  { code: 'hi', label: 'Hindi (हिंदी)' },
-];
+import { LANGUAGES } from '../constants';
+import { StatusBadge, PriorityBadge, LanguageTag } from './common/Badges';
+import { formatDate, formatScorePercent } from '../utils/format';
 
 export default function CitizenPortal() {
   // RAG Drafting State
@@ -155,7 +152,7 @@ export default function CitizenPortal() {
             <div className="rag-output-box">
               <div className="rag-header">
                 <h3>Formal Grievance Petition Draft</h3>
-                <span className="lang-tag">{selectedLanguage.toUpperCase()}</span>
+                <LanguageTag language={selectedLanguage} className="lang-tag" />
               </div>
 
               <div className="rag-content">
@@ -170,7 +167,7 @@ export default function CitizenPortal() {
                       <div key={cat.id} className="category-chip">
                         <span className="cat-name">{cat.categoryName}</span>
                         <span className="dept-name">({cat.department})</span>
-                        <span className="score">Match: {(cat.score * 100).toFixed(0)}%</span>
+                        <span className="score">Match: {formatScorePercent(cat.score)}</span>
                       </div>
                     ))}
                   </div>
@@ -216,12 +213,10 @@ export default function CitizenPortal() {
                   <div className="complaint-item-header">
                     <div className="item-title">
                       <span className="complaint-id">#{c.id}</span>
-                      <span className={`status-badge status-${c.status}`}>{c.status.replace('_', ' ')}</span>
-                      <span className={`priority-badge priority-${c.priority}`}>{c.priority} priority</span>
+                      <StatusBadge status={c.status} />
+                      <PriorityBadge priority={c.priority} suffix=" priority" />
                     </div>
-                    <span className="complaint-date">
-                      {new Date(c.createdAt).toLocaleDateString()}
-                    </span>
+                    <span className="complaint-date">{formatDate(c.createdAt)}</span>
                   </div>
 
                   <div className="complaint-item-body">

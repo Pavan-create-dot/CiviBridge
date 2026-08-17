@@ -1,26 +1,15 @@
 // Embedding utility — generates text embeddings via Gemini for semantic similarity search.
 
-const { GoogleGenerativeAI } = require('@google/generative-ai');
-
-let _client = null;
-
-function getClient() {
-  if (_client) return _client;
-  if (!process.env.GEMINI_API_KEY) throw new Error('GEMINI_API_KEY is not set.');
-  _client = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-  return _client;
-}
+const { getModel, EMBEDDING_MODEL } = require('./geminiClient');
 
 /**
  * Generate a text embedding vector for the given content.
- * Uses Gemini text-embedding-004 (768 dimensions).
  *
  * @param {string} text
  * @returns {Promise<number[]>} embedding vector
  */
 async function embedText(text) {
-  const model = getClient().getGenerativeModel({ model: 'gemini-embedding-001' });
-  const result = await model.embedContent(text);
+  const result = await getModel(EMBEDDING_MODEL).embedContent(text);
   return result.embedding.values;
 }
 

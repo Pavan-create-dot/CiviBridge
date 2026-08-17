@@ -1,27 +1,10 @@
 // RAG Service — integrates vector retrieval from PostgreSQL with Gemini LLM generation.
 // Provides complaint auto-classification and context-augmented drafting.
 
-const { GoogleGenerativeAI } = require('@google/generative-ai');
 const { findSimilarCategories } = require('./vectorStore');
-
-const LANGUAGE_NAMES = {
-  en: 'English',
-  te: 'Telugu',
-  hi: 'Hindi',
-};
-
-let _genAI = null;
-let _model = null;
-
-function getModel() {
-  if (_model) return _model;
-  if (!process.env.GEMINI_API_KEY) {
-    throw new Error('GEMINI_API_KEY environment variable is not set.');
-  }
-  _genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-  _model = _genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
-  return _model;
-}
+const { generateText } = require('../utils/geminiClient');
+const { formatCategoryMatches } = require('../utils/categoryMatches');
+const { LANGUAGE_NAMES } = require('../constants');
 
 /**
  * Classify complaint text by finding top matching GrievanceCategory via vector similarity.
@@ -98,20 +81,11 @@ async function draftComplaintWithRAG({ prompt, language = 'en' }) {
     .join('\n');
 
   // 4. Generate content with Gemini
-  const model = getModel();
-  const result = await model.generateContent(ragPrompt);
-  const draft = result.response.text().trim();
-
-  const formattedCategories = matches.map((m) => ({
-    id: m.category.id,
-    categoryName: m.category.categoryName,
-    department: m.category.department,
-    score: Number(m.score.toFixed(4)),
-  }));
+  const draft = await generateText(ragPrompt);
 
   return {
     draft,
-    matchedCategories: formattedCategories,
+    matchedCategories: formatCategoryMatches(matches),
   };
 }
 

@@ -1,29 +1,8 @@
 // Translation Service — uses Gemini to translate and detect language for civic grievance text.
 // Supports English (en), Telugu (te), and Hindi (hi).
 
-const { GoogleGenerativeAI } = require('@google/generative-ai');
-
-// Human-readable names used in prompts so Gemini understands the target
-const LANGUAGE_NAMES = {
-  en: 'English',
-  te: 'Telugu',
-  hi: 'Hindi',
-};
-
-// Lazily initialised — avoids crashing at startup if the key is missing;
-// the calling code decides how to handle a missing key.
-let _genAI = null;
-let _model = null;
-
-function getModel() {
-  if (_model) return _model;
-  if (!process.env.GEMINI_API_KEY) {
-    throw new Error('GEMINI_API_KEY environment variable is not set.');
-  }
-  _genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-  _model = _genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
-  return _model;
-}
+const { generateText } = require('../utils/geminiClient');
+const { LANGUAGE_NAMES } = require('../constants');
 
 /**
  * Translate text from one supported language to another.
@@ -47,8 +26,6 @@ async function translateText(text, sourceLang, targetLang) {
     return text; // no-op
   }
 
-  const model = getModel();
-
   const prompt = [
     `You are a precise translation assistant for civic grievance documents.`,
     `Translate the following text from ${sourceName} to ${targetName}.`,
@@ -58,8 +35,7 @@ async function translateText(text, sourceLang, targetLang) {
     text,
   ].join('\n');
 
-  const result = await model.generateContent(prompt);
-  return result.response.text().trim();
+  return generateText(prompt);
 }
 
 /**
@@ -70,8 +46,6 @@ async function translateText(text, sourceLang, targetLang) {
  * @returns {Promise<{ detectedLanguage: string, confidence: string }>}
  */
 async function detectLanguage(text) {
-  const model = getModel();
-
   const supportedList = Object.entries(LANGUAGE_NAMES)
     .map(([code, name]) => `"${code}" for ${name}`)
     .join(', ');
@@ -88,8 +62,7 @@ async function detectLanguage(text) {
     text,
   ].join('\n');
 
-  const result = await model.generateContent(prompt);
-  const raw = result.response.text().trim();
+  const raw = await generateText(prompt);
 
   try {
     // Strip potential markdown code fences defensively

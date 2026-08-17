@@ -1,8 +1,10 @@
 // Complaint controller — handles submit, retrieve, and status-update operations on complaints.
 
 const prisma = require('../db/prismaClient');
+const { CATEGORY_SUMMARY_INCLUDE } = require('../db/complaintIncludes');
 const { translateGrievanceToEnglish } = require('../services/translationService');
 const { classifyComplaintText } = require('../rag/ragService');
+const { sendServerError, parseIdParam, canAccessComplaint } = require('../utils/httpHelpers');
 
 /**
  * POST /complaints
@@ -43,17 +45,12 @@ async function submitComplaint(req, res) {
         matchedCategoryId,
         status,
       },
-      include: {
-        matchedCategory: {
-          select: { categoryName: true, department: true },
-        },
-      },
+      include: CATEGORY_SUMMARY_INCLUDE,
     });
 
     return res.status(201).json({ message: 'Complaint submitted successfully.', complaint });
   } catch (err) {
-    console.error('submitComplaint error:', err);
-    return res.status(500).json({ error: 'Internal server error.' });
+    return sendServerError(res, 'submitComplaint', err);
   }
 }
 
@@ -68,17 +65,12 @@ async function getMyComplaints(req, res) {
     const complaints = await prisma.complaint.findMany({
       where: { userId: req.user.id },
       orderBy: { createdAt: 'desc' },
-      include: {
-        matchedCategory: {
-          select: { categoryName: true, department: true },
-        },
-      },
+      include: CATEGORY_SUMMARY_INCLUDE,
     });
 
     return res.status(200).json({ complaints });
   } catch (err) {
-    console.error('getMyComplaints error:', err);
-    return res.status(500).json({ error: 'Internal server error.' });
+    return sendServerError(res, 'getMyComplaints', err);
   }
 }
 
@@ -90,28 +82,20 @@ async function getMyComplaints(req, res) {
  * Returns: 200 OK with the complaint, 403 if forbidden, 404 if not found.
  */
 async function getComplaintById(req, res) {
-  const id = parseInt(req.params.id, 10);
-
-  if (isNaN(id)) {
-    return res.status(400).json({ error: 'Invalid complaint ID.' });
-  }
+  const id = parseIdParam(req, res);
+  if (id === null) return;
 
   try {
     const complaint = await prisma.complaint.findUnique({
       where: { id },
-      include: {
-        matchedCategory: {
-          select: { categoryName: true, department: true },
-        },
-      },
+      include: CATEGORY_SUMMARY_INCLUDE,
     });
 
     if (!complaint) {
       return res.status(404).json({ error: 'Complaint not found.' });
     }
 
-    // Citizens can only see their own complaints
-    if (req.user.role !== 'admin' && complaint.userId !== req.user.id) {
+    if (!canAccessComplaint(req.user, complaint)) {
       return res
         .status(403)
         .json({ error: 'Forbidden: you do not have access to this complaint.' });
@@ -119,8 +103,7 @@ async function getComplaintById(req, res) {
 
     return res.status(200).json({ complaint });
   } catch (err) {
-    console.error('getComplaintById error:', err);
-    return res.status(500).json({ error: 'Internal server error.' });
+    return sendServerError(res, 'getComplaintById', err);
   }
 }
 
@@ -132,11 +115,8 @@ async function getComplaintById(req, res) {
  * Returns: 200 OK with the updated complaint.
  */
 async function updateComplaintStatus(req, res) {
-  const id = parseInt(req.params.id, 10);
-
-  if (isNaN(id)) {
-    return res.status(400).json({ error: 'Invalid complaint ID.' });
-  }
+  const id = parseIdParam(req, res);
+  if (id === null) return;
 
   const { status } = req.body;
 
@@ -154,8 +134,7 @@ async function updateComplaintStatus(req, res) {
 
     return res.status(200).json({ message: 'Status updated successfully.', complaint });
   } catch (err) {
-    console.error('updateComplaintStatus error:', err);
-    return res.status(500).json({ error: 'Internal server error.' });
+    return sendServerError(res, 'updateComplaintStatus', err);
   }
 }
 

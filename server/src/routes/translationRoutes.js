@@ -2,11 +2,8 @@
 
 const { Router } = require('express');
 const { translate, detect } = require('../controllers/translationController');
-const {
-  translateSchema,
-  detectLanguageSchema,
-  validate,
-} = require('../validators/translationValidators');
+const { translateSchema, detectLanguageSchema } = require('../validators/translationValidators');
+const validate = require('../middleware/validate');
 const authenticateJWT = require('../middleware/authenticateJWT');
 
 const router = Router();

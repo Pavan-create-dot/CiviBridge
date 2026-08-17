@@ -3,6 +3,28 @@
 const { translateText, detectLanguage } = require('../services/translationService');
 
 /**
+ * Map a Gemini service failure onto an HTTP response.
+ * Configuration problems surface as 503, bad input as 400, everything else as 502.
+ *
+ * @param {import('express').Response} res
+ * @param {string} context - handler name used as the log prefix
+ * @param {Error} err
+ * @param {string} fallbackMessage - client-facing message for unexpected upstream failures
+ */
+function sendGeminiError(res, context, err, fallbackMessage) {
+  console.error(`${context} error:`, err);
+
+  if (err.message.includes('GEMINI_API_KEY')) {
+    return res.status(503).json({ error: 'Translation service is not configured.' });
+  }
+  if (err.message.includes('Unsupported language')) {
+    return res.status(400).json({ error: err.message });
+  }
+
+  return res.status(502).json({ error: fallbackMessage });
+}
+
+/**
  * POST /translate
  * Translates submitted text between supported languages.
  *
@@ -22,19 +44,12 @@ async function translate(req, res) {
       targetLang,
     });
   } catch (err) {
-    console.error('translate error:', err);
-
-    // Surface configuration errors clearly; treat everything else as 502
-    if (err.message.includes('GEMINI_API_KEY')) {
-      return res.status(503).json({ error: 'Translation service is not configured.' });
-    }
-    if (err.message.includes('Unsupported language')) {
-      return res.status(400).json({ error: err.message });
-    }
-
-    return res
-      .status(502)
-      .json({ error: 'Translation service encountered an error. Please try again.' });
+    return sendGeminiError(
+      res,
+      'translate',
+      err,
+      'Translation service encountered an error. Please try again.'
+    );
   }
 }
 
@@ -53,15 +68,12 @@ async function detect(req, res) {
 
     return res.status(200).json({ text, detectedLanguage, confidence });
   } catch (err) {
-    console.error('detect error:', err);
-
-    if (err.message.includes('GEMINI_API_KEY')) {
-      return res.status(503).json({ error: 'Translation service is not configured.' });
-    }
-
-    return res
-      .status(502)
-      .json({ error: 'Language detection encountered an error. Please try again.' });
+    return sendGeminiError(
+      res,
+      'detect',
+      err,
+      'Language detection encountered an error. Please try again.'
+    );
   }
 }
 
