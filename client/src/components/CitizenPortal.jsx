@@ -210,52 +210,6 @@ export default function CitizenPortal() {
 
           {error && <div className="alert-box error mt-3">{error}</div>}
           {successMessage && <div className="alert-box success mt-3">{successMessage}</div>}
-
-          {/* Generated RAG Grounded Output Display */}
-          {generatedDraft && (
-            <div className="rag-output-box mt-4">
-              <div className="rag-header">
-                <h3>Official Grounded Petition Draft</h3>
-                <span className="lang-tag">{selectedLanguage.toUpperCase()}</span>
-              </div>
-
-              {matchedCategory && (
-                <div className="matched-category-banner">
-                  <span><strong>AI Classification:</strong> {matchedCategory.categoryName}</span>
-                  <span><strong>Department:</strong> {matchedCategory.department}</span>
-                </div>
-              )}
-
-              {matchedKnowledge.length > 0 && (
-                <div className="grounding-sources mt-1">
-                  <small><strong>Grounded in Government Policy Docs:</strong> {matchedKnowledge.map(k => k.title).join(', ')}</small>
-                </div>
-              )}
-
-              <div className="rag-content mt-2">
-                <pre>{cleanDraftBody(generatedDraft)}</pre>
-              </div>
-
-              <div className="rag-actions-row mt-3">
-                <button
-                  type="button"
-                  className="btn-success"
-                  onClick={() =>
-                    setActiveModalPetition({
-                      id: currentComplaintId || 'DRAFT',
-                      draft: cleanDraftBody(generatedDraft),
-                      categoryName: matchedCategory?.categoryName || 'Civic Grievance',
-                      department: matchedCategory?.department || 'Municipal Authority',
-                      language: selectedLanguage,
-                      createdAt: new Date().toISOString(),
-                    })
-                  }
-                >
-                  📄 Preview & Download Official PDF
-                </button>
-              </div>
-            </div>
-          )}
         </div>
 
         {/* Right Column: My Grievances History */}
