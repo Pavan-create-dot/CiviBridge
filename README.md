@@ -1,28 +1,45 @@
 # CiviBridge — Regional Language Civic Grievance Assistant
 
-CiviBridge is a full-stack Web application built with **React, Node.js (Express), MongoDB Atlas, and Google Gemini AI**. It enables citizens to file civic grievances in their native regional languages (Telugu, Hindi, English) and uses **Retrieval-Augmented Generation (RAG)** to classify, ground, and generate official government petition documents ready for PDF download.
+CiviBridge is an AI-powered full-stack Web application built with **React, Node.js (Express), MongoDB Atlas, and Google Gemini AI**. It empowers citizens to file civic grievances in their native regional languages (Telugu, Hindi, English) and uses **Retrieval-Augmented Generation (RAG)** to classify, ground, and generate official government petition documents ready for PDF export.
 
 ---
 
-## 🚀 Key Features & Project Flow
+## 📸 Application Screenshots
 
-### 1. Citizen Portal
-- **Native Language Description**: Citizens describe their problem in English, Telugu, or Hindi.
+### 1. Citizen Public Grievance Portal
+![Citizen Public Grievance Portal](screenshots/citizen-portal.png)
+
+### 2. Department Administrator Triage Portal
+![Department Administrator Triage Portal](screenshots/admin-dashboard.png)
+
+### 3. Landing Page Overview
+![Landing Page Overview](screenshots/landing-page.png)
+
+### 4. Authentication Modal
+![Authentication Modal](screenshots/auth-modal.png)
+
+---
+
+## 🚀 Key Features
+
+### Citizen Portal
+- **Multilingual Input**: Citizens describe their problem in English, Telugu, or Hindi.
 - **RAG Classification & Grounding**:
-  1. If non-English input is provided, Gemini translates it into English.
-  2. **Dual Retrieval**: Text embedding vector is computed using Gemini (`text-embedding-004`) and compared via **Cosine Similarity** against:
-     - `GrievanceCategory` embeddings stored in MongoDB (finds responsible municipal department).
-     - `KnowledgeDoc` embeddings stored in MongoDB (retrieves official government rules & petition format requirements).
+  1. Text embedding vector is generated using Gemini (`text-embedding-004`).
+  2. **Dual Retrieval**: Query vector is compared via **Cosine Similarity** against MongoDB Atlas vector collections:
+     - `GrievanceCategory` embeddings (finds matching municipal department).
+     - `KnowledgeDoc` embeddings (retrieves government rules & petition guidelines).
   3. **Augment & Generate**: Gemini LLM drafts a formal, structured petition in the user's requested language.
-- **Download Official PDF**: Citizens can directly preview and download a formatted official petition document as a PDF file.
+- **1-Page Official PDF Export**: Citizens can preview and download a formatted official letterhead petition PDF (`html2pdf.js`).
+- **Grievance Tracking & Deletion**: Citizens can track status updates and delete their submitted grievances.
 
-### 2. Department Admin Portal
-- **RAG Knowledge Base Management**: Admin can add, update, or delete government policy documents. Any new document is automatically embedded via Gemini and stored in MongoDB to ground future complaints.
-- **Grievance Triage**: Admin can view all filed grievances, run AI vector auto-routing, update priority levels, change status (`pending`, `in_progress`, `resolved`), and log inspection remarks.
+### Department Admin Portal
+- **Grievance Triage Table**: View overview statistics (Total, Pending, In Progress, Resolved), filter complaints, run AI vector auto-routing, change status/priority, and log inspection notes.
+- **RAG Knowledge Base Management**: Admin can add, update, or delete government policy documents. Any document added is automatically embedded via Gemini API and stored in MongoDB to ground future complaint generation.
 
 ---
 
-## 🏗️ Architecture & RAG Flow
+## 🏗️ System Architecture & RAG Flow
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
@@ -48,25 +65,25 @@ CiviBridge is a full-stack Web application built with **React, Node.js (Express)
 
 ---
 
-## 📁 Project Structure
+## 📁 Directory Structure
 
 ```
 CiviBridge/
-├── .env                  # MongoDB URI, JWT secret, Gemini API Key
 ├── render.yaml           # Backend deployment manifest for Render
-├── README.md             # Project presentation & guide
-├── package.json          # Launch controller
+├── README.md             # Project presentation & documentation
+├── package.json          # Root launch controller
+├── screenshots/          # UI application screenshots
 │
 ├── client/               # React + Vite Frontend
-│   ├── index.html        # Includes html2pdf.js for PDF downloads
+│   ├── index.html        # html2pdf.js loaded for client-side PDF downloads
 │   ├── vercel.json       # Vercel deployment config
 │   └── src/
 │       ├── components/   # CitizenPortal, AdminDashboard, Navbar, AuthModal
 │       ├── context/      # AuthContext
-│       └── services/     # API fetch wrapper
+│       └── services/     # api.js API fetch wrapper
 │
 └── server/               # Node.js + Express Backend
-    ├── db.js             # MongoDB Mongoose connection
+    ├── db.js             # MongoDB Mongoose connection helper
     ├── seed.js           # Seeds categories & knowledge base with embeddings
     ├── index.js          # Express server entry point
     ├── models/           # User, Complaint, GrievanceCategory, KnowledgeDoc
@@ -84,7 +101,7 @@ CiviBridge/
 - MongoDB Atlas cluster URL
 - Google Gemini API Key
 
-### 1. Environment Setup
+### 1. Environment Configuration
 Create `.env` file in the root directory:
 ```env
 PORT=5000
@@ -101,11 +118,11 @@ cd server && npm install
 cd ../client && npm install
 cd ..
 
-# Seed MongoDB with categories and knowledge docs (embeds via Gemini)
+# Seed MongoDB Atlas with grievance categories and knowledge base docs
 npm run seed
 ```
 
-### 3. Run Application
+### 3. Run Development Servers
 ```bash
 # Terminal 1: Run Backend API Server
 npm run dev:server
@@ -114,14 +131,3 @@ npm run dev:server
 npm run dev:client
 ```
 Client runs on `http://localhost:3000`, Backend API runs on `http://localhost:5000`.
-
----
-
-## 🎤 Interview Presentation Points (TCS / Technical Interview)
-
-1. **Why RAG?**
-   - Traditional LLMs may hallucinate department names or write unstructured letters. RAG grounds the model output using real department scopes and government guidelines retrieved directly from MongoDB.
-2. **Where are embeddings stored?**
-   - Stored directly in MongoDB Atlas (`embedding: [Number]`). Cosine similarity search is executed in Node.js to find the top matching category and grounding rules.
-3. **How does admin knowledge update work?**
-   - When an admin updates or adds a policy document in the Admin Portal, the server generates a new embedding via Gemini API and saves it in MongoDB. The next citizen complaint automatically retrieves this updated policy rule.
