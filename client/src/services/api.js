@@ -64,6 +64,10 @@ export async function getMyComplaints() {
   return request('/complaints/me', { method: 'GET' });
 }
 
+export async function deleteComplaint(id) {
+  return request(`/complaints/${id}`, { method: 'DELETE' });
+}
+
 export async function getAdminComplaints(params = {}) {
   const query = new URLSearchParams();
   Object.entries(params).forEach(([k, v]) => {

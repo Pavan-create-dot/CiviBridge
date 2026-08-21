@@ -2,7 +2,6 @@ const { Router } = require('express');
 const Complaint = require('../models/Complaint');
 const GrievanceCategory = require('../models/GrievanceCategory');
 const { authenticateJWT, requireAdmin } = require('../middleware/auth');
-const { classifyComplaintText } = require('../rag/ragService');
 const { findSimilarCategories } = require('../rag/vectorStore');
 
 const router = Router();
@@ -74,6 +73,26 @@ router.get('/me', async (req, res) => {
   } catch (err) {
     console.error('Get my complaints error:', err);
     return res.status(500).json({ error: 'Failed to fetch complaints.' });
+  }
+});
+
+// DELETE /complaints/:id - Delete complaint (owner citizen or admin)
+router.delete('/:id', async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    const complaint = await Complaint.findById(id);
+    if (!complaint) return res.status(404).json({ error: 'Complaint not found.' });
+
+    if (req.user.role !== 'admin' && complaint.userId.toString() !== req.user.id) {
+      return res.status(403).json({ error: 'Not authorized to delete this complaint.' });
+    }
+
+    await Complaint.findByIdAndDelete(id);
+    return res.json({ message: 'Complaint deleted successfully.' });
+  } catch (err) {
+    console.error('Delete complaint error:', err);
+    return res.status(500).json({ error: 'Failed to delete complaint.' });
   }
 });
 

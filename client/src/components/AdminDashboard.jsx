@@ -3,6 +3,7 @@ import {
   getAdminComplaints,
   updateComplaintStatus,
   autoRouteComplaint,
+  deleteComplaint,
   getKnowledgeDocs,
   createKnowledgeDoc,
   updateKnowledgeDoc,
@@ -94,6 +95,16 @@ export default function AdminDashboard() {
       fetchComplaints();
     } catch (err) {
       setTriageMessage(`Auto-routing error: ${err.message}`);
+    }
+  };
+
+  const handleDeleteComplaint = async (id) => {
+    if (!window.confirm('Delete this complaint permanently?')) return;
+    try {
+      await deleteComplaint(id);
+      fetchComplaints();
+    } catch (err) {
+      alert(`Failed to delete complaint: ${err.message}`);
     }
   };
 
@@ -251,8 +262,11 @@ export default function AdminDashboard() {
                         <td><span className={`priority-badge priority-${c.priority}`}>{c.priority}</span></td>
                         <td><span className={`status-badge status-${c.status}`}>{c.status}</span></td>
                         <td>
-                          <button className="btn-secondary btn-sm" onClick={() => openTriageModal(c)}>
+                          <button className="btn-secondary btn-sm mr-2" onClick={() => openTriageModal(c)}>
                             Triage / Route
+                          </button>
+                          <button className="btn-danger btn-sm" onClick={() => handleDeleteComplaint(c._id || c.id)}>
+                            Delete
                           </button>
                         </td>
                       </tr>

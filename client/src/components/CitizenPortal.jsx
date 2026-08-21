@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { generateGroundedComplaint, submitComplaint, getMyComplaints } from '../services/api';
+import { generateGroundedComplaint, submitComplaint, getMyComplaints, deleteComplaint } from '../services/api';
 
 const LANGUAGES = [
   { code: 'en', label: 'English' },
@@ -105,16 +105,26 @@ export default function CitizenPortal() {
     }
   };
 
+  const handleDeleteGrievance = async (id) => {
+    if (!window.confirm('Are you sure you want to delete this filed grievance?')) return;
+    try {
+      await deleteComplaint(id);
+      fetchComplaints();
+    } catch (err) {
+      alert(`Failed to delete grievance: ${err.message}`);
+    }
+  };
+
   const downloadPDF = (elementId, filename = 'CiviBridge-Grievance-Petition.pdf') => {
     const element = document.getElementById(elementId);
     if (!element) return;
 
     if (window.html2pdf) {
       const opt = {
-        margin: 0.5,
+        margin: [0.4, 0.4, 0.4, 0.4],
         filename: filename,
         image: { type: 'jpeg', quality: 0.98 },
-        html2canvas: { scale: 2 },
+        html2canvas: { scale: 2, useCORS: true },
         jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' },
       };
       window.html2pdf().set(opt).from(element).save();
@@ -207,7 +217,7 @@ export default function CitizenPortal() {
               )}
 
               {matchedKnowledge.length > 0 && (
-                <div className="grounding-sources">
+                <div className="grounding-sources mt-1">
                   <small><strong>Grounded in Government Policy Docs:</strong> {matchedKnowledge.map(k => k.title).join(', ')}</small>
                 </div>
               )}
@@ -231,7 +241,7 @@ export default function CitizenPortal() {
                     })
                   }
                 >
-                  📄 Preview & Download PDF
+                  📄 Preview & Download Official PDF
                 </button>
               </div>
             </div>
@@ -279,7 +289,7 @@ export default function CitizenPortal() {
                     </div>
                   )}
 
-                  <div className="item-actions mt-2">
+                  <div className="item-actions flex-between mt-3">
                     <button
                       className="btn-secondary btn-sm"
                       onClick={() =>
@@ -293,7 +303,14 @@ export default function CitizenPortal() {
                         })
                       }
                     >
-                      📄 Download Official PDF
+                      📄 Download PDF
+                    </button>
+
+                    <button
+                      className="btn-danger btn-sm"
+                      onClick={() => handleDeleteGrievance(c._id || c.id)}
+                    >
+                      🗑️ Delete
                     </button>
                   </div>
                 </div>
@@ -308,66 +325,82 @@ export default function CitizenPortal() {
         <div className="modal-overlay" onClick={() => setActiveModalPetition(null)}>
           <div className="modal-content petition-modal" onClick={(e) => e.stopPropagation()}>
             <div className="petition-modal-header no-print">
-              <h2>Official Civic Petition Document</h2>
+              <div className="modal-title-wrap">
+                <h2>🏛️ Official Civic Grievance Petition</h2>
+                <p className="modal-sub">Formatted & Grounded for Municipal Corporation Filing</p>
+              </div>
               <div className="modal-header-actions">
                 <button
                   type="button"
-                  className="btn-primary btn-sm"
+                  className="btn-download-pdf"
                   onClick={() => downloadPDF('printable-pdf-document', `CiviBridge-Petition-${activeModalPetition.id}.pdf`)}
                 >
-                  📥 Download PDF
+                  📥 Download Official PDF
                 </button>
                 <button type="button" className="btn-close" onClick={() => setActiveModalPetition(null)}>✕</button>
               </div>
             </div>
 
-            {/* Formal Government Printable Document */}
+            {/* Formal Government Printable Document (Letterhead Design) */}
             <div className="petition-document" id="printable-pdf-document">
-              <div className="doc-letterhead">
-                <div className="doc-emblem">🏛️</div>
-                <h3>MUNICIPAL CORPORATION CIVIC PETITION</h3>
-                <p className="doc-subhead">Public Grievance & Redressal Portal (CiviBridge RAG System)</p>
-                <div className="doc-divider"></div>
-              </div>
+              <div className="doc-watermark">CiviBridge Official</div>
 
-              <div className="doc-meta-grid">
-                <div>
-                  <p><strong>Tracking Ref No:</strong> #{activeModalPetition.id}</p>
-                  <p><strong>Date:</strong> {new Date(activeModalPetition.createdAt).toLocaleDateString()}</p>
-                </div>
-                <div className="text-right">
-                  <p><strong>Category:</strong> {activeModalPetition.categoryName}</p>
-                  <p><strong>Language:</strong> {activeModalPetition.language.toUpperCase()}</p>
+              {/* Header Letterhead */}
+              <div className="doc-letterhead-formal">
+                <div className="doc-emblem-seal">🏛️</div>
+                <div className="doc-header-text">
+                  <h3>MUNICIPAL CORPORATION & URBAN LOCAL BODY</h3>
+                  <p className="doc-subtitle-formal">Public Grievance Redressal & Citizen Welfare Cell</p>
+                  <p className="doc-portal-ref">Issued via CiviBridge AI Regional Language Portal (RAG System)</p>
                 </div>
               </div>
+              <div className="doc-header-line"></div>
 
-              <div className="doc-addressee">
-                <p><strong>TO:</strong></p>
-                <p className="addressee-title">The Executive Commissioner / Competent Authority,</p>
+              {/* Reference Grid */}
+              <div className="doc-meta-grid-formal">
+                <div className="meta-col">
+                  <p><strong>Tracking Ref ID:</strong> <span className="ref-highlight">#{activeModalPetition.id}</span></p>
+                  <p><strong>Date of Submission:</strong> {new Date(activeModalPetition.createdAt).toLocaleDateString()}</p>
+                </div>
+                <div className="meta-col text-right">
+                  <p><strong>Civic Category:</strong> {activeModalPetition.categoryName}</p>
+                  <p><strong>Petition Language:</strong> {activeModalPetition.language.toUpperCase()}</p>
+                </div>
+              </div>
+
+              {/* Addressee Section */}
+              <div className="doc-addressee-formal">
+                <p className="to-label">TO:</p>
+                <p className="addressee-title">The Competent Municipal Commissioner / Executive Engineer,</p>
                 <p className="addressee-dept">{activeModalPetition.department}</p>
-                <p>Municipal Corporation Authority</p>
+                <p className="addressee-office">Municipal Public Works & Urban Infrastructure Division</p>
               </div>
 
-              <div className="doc-subject">
-                <strong>SUBJECT:</strong> Formal Public Petition regarding <u>{activeModalPetition.categoryName}</u>.
+              {/* Subject Line */}
+              <div className="doc-subject-formal">
+                <span className="subj-tag">SUBJECT:</span> Formal Citizen Petition regarding <u>{activeModalPetition.categoryName}</u> in local jurisdiction.
               </div>
 
-              <div className="doc-body">
-                <div className="doc-text-block">
+              {/* Main Body */}
+              <div className="doc-body-formal">
+                <div className="doc-text-block-formal">
                   {activeModalPetition.draft}
                 </div>
               </div>
 
-              <div className="doc-footer-signatures mt-4">
-                <div className="doc-stamp-area">
-                  <div className="digital-seal">
+              {/* Footer Stamps & Signature */}
+              <div className="doc-footer-formal mt-4">
+                <div className="digital-verification-stamp">
+                  <div className="stamp-badge">
                     <span>DIGITALLY VERIFIED</span>
-                    <small>CiviBridge RAG System</small>
+                    <small>RAG Policy Grounded</small>
                   </div>
                 </div>
-                <div className="doc-signature-box">
-                  <div className="sign-line"></div>
-                  <p>Signature of Petitioner Citizen</p>
+
+                <div className="doc-signature-block">
+                  <div className="signature-line"></div>
+                  <p className="sig-title">Signature / Mark of Citizen Petitioner</p>
+                  <small className="sig-sub">Submitted via Citizen Public Self-Service Portal</small>
                 </div>
               </div>
             </div>
