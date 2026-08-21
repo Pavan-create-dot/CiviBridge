@@ -1,7 +1,6 @@
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 const { findSimilarCategories, findSimilarKnowledgeDocs } = require('./vectorStore');
 const GrievanceCategory = require('../models/GrievanceCategory');
-const KnowledgeDoc = require('../models/KnowledgeDoc');
 
 const LANGUAGE_NAMES = {
   en: 'English',
@@ -39,7 +38,7 @@ async function generateWithFallback(prompt) {
 }
 
 /**
- * Smart Fallback Category Matcher (uses MongoDB text/keyword search if vector embeddings fail)
+ * Smart Fallback Category Matcher (uses MongoDB keyword search if vector embeddings fail)
  */
 async function fallbackCategoryMatch(promptText) {
   try {
@@ -69,66 +68,45 @@ async function fallbackCategoryMatch(promptText) {
 }
 
 /**
- * Fallback Petition Builder: Ensures petition generation NEVER fails even if Gemini API key is missing or quota limited.
+ * Fallback Petition Builder: Clean body text without duplicating letterhead TO/SUBJECT headers.
  */
 function buildFallbackGroundedPetition(prompt, category, language) {
-  const dept = category ? category.department : 'Municipal Executive Officer & Public Works Department';
   const catName = category ? category.categoryName : 'Civic Grievance';
 
   if (language === 'te') {
-    return `విషయం: ${catName} గురించి అధికారిక ప్రజా వినతిపత్రం
-
-గౌరవనీయులైన అధికారి గారికి,
-శాఖ: ${dept}
-మున్సిపల్ కార్పొరేషన్ / స్థానిక స్వపరిపాలన సంస్థ.
+    return `గౌరవనీయులైన అధికారి గారికి,
 
 అయ్యా / అమ్మా,
-నేను ఈ క్రింది పౌర సమస్యను మీ దృష్టికి తీసుకురావడానికి ఈ అధికారిక వినతిపత్రాన్ని సమర్పిస్తున్నాను:
+ఈ క్రింది పౌర సమస్యను మీ అధికారుల దృష్టికి తీసుకురావడానికి ఈ అధికారిక వినతిపత్రాన్ని సమర్పిస్తున్నాను:
 
 సమస్య వివరాలు:
 "${prompt}"
 
 మా విన్నపం:
-పైన పేర్కొన్న సమస్యను సంబంధిత విభాగాధికారులు ప్రత్యక్షంగా పరిశీలించి, వీలైనంత త్వరగా తగిన పరిష్కార చర్యలు తీసుకోవాలని పౌరుల తరఫున విజ్ఞప్తి చేస్తున్నాము.
+పైన పేర్కొన్న సమస్యను సంబంధిత విభాగాధికారులు పరిశీలించి, పౌరుల పబ్లిక్ సేఫ్టీ నిబంధనల (సెక్షన్ 44) ప్రకారం తక్షణమే తగిన సవరణ చర్యలు తీసుకోవాలని విజ్ఞప్తి చేస్తున్నాము.
 
-భవదీయుడు/భవదీయురాలు,
-బాధ్యతాయుతమైన పౌరుడు/పౌరురాలు
-(CiviBridge పౌర సేవా పోర్టల్ ద్వారా సమర్పించబడింది)`;
+భవదీయుడు,
+బాధ్యతాయుతమైన పౌరుడు`;
   }
 
   if (language === 'hi') {
-    return `विषय: ${catName} के संबंध में औपचारिक नागरिक शिकायत याचिका
+    return `सेवा में,
+सक्षम अधिकारी महोदय,
 
-सेवा में,
-सक्षम अधिकारी / विभागाध्यक्ष,
-विभाग: ${dept}
-नगर निगम एवं स्थानीय प्रशासन।
-
-महोदय / महोदया,
-मैं निम्नलिखित नागरिक समस्या की ओर आपका ध्यान आकर्षित करने हेतु यह औपचारिक याचिका प्रस्तुत कर रहा/रही हूँ:
-
-शिकायत का विवरण:
+विषयगत समस्या विवरण:
 "${prompt}"
 
-निवेदन:
-कृपया संबंधित विभागीय अधिकारियों को निर्देशित कर उक्त स्थल का निरीक्षण करवाएं तथा जनहित में अतिशीघ्र आवश्यक उपचारात्मक कार्रवाई करें।
+अनुरोध:
+नागरिक सुविधा एवं सार्वजनिक सुरक्षा नियमों (धारा 44) के अंतर्गत कृपया उक्त स्थल का शीघ्र निरीक्षण कर जनहित में आवश्यक उपचारात्मक कार्रवाई करने का कष्ट करें।
 
 भवदीय,
-जागरूक नागरिक
-(CiviBridge डिजिटल नागरिक पोर्टल द्वारा प्रस्तुत)`;
+सचेत नागरिक`;
   }
 
   // Default English
-  return `SUBJECT: Formal Public Grievance Petition regarding ${catName}.
+  return `Respected Sir / Madam,
 
-TO:
-The Executive Officer / Competent Authority,
-Department: ${dept},
-Municipal Corporation Authority.
-
-Respected Sir / Madam,
-
-I am submitting this formal public petition to bring the following civic issue to your immediate attention:
+I am filing this official petition regarding ${catName} to bring the following urgent civic issue to your attention:
 
 GRIEVANCE DETAILS & LOCATION IMPACT:
 "${prompt}"
@@ -137,8 +115,7 @@ GROUNDED POLICY REFERENCE & REQUESTED ACTION:
 In accordance with Municipal Grievance Redressal Standards (Section 44 Public Safety Mandate), I request the concerned department officers to inspect the aforementioned site and initiate prompt corrective measures in public interest.
 
 Yours faithfully,
-Concerned Citizen
-(Submitted via CiviBridge Public Grievance Portal)`;
+Concerned Citizen`;
 }
 
 /**
@@ -146,12 +123,11 @@ Concerned Citizen
  * 1. Dual Retrieval (Categories + Knowledge Base docs) from MongoDB via Vector Embeddings.
  * 2. Augment context into Gemini prompt.
  * 3. Generate formal grounded complaint petition.
- * 4. Fallback resilience: If Gemini API fails (e.g. invalid key in production), builds a grounded template draft.
+ * 4. Fallback resilience: If Gemini API fails, builds a grounded template draft.
  */
 async function generateGroundedComplaint({ prompt, language = 'en' }) {
   const targetLanguageName = LANGUAGE_NAMES[language] || 'English';
 
-  // 1. Dual Retrieval via Vector Embeddings
   let categoryMatches = [];
   let knowledgeMatches = [];
 
@@ -167,13 +143,11 @@ async function generateGroundedComplaint({ prompt, language = 'en' }) {
     console.warn('Vector knowledge search skipped:', err.message);
   }
 
-  // Fallback category matching if vector search returned nothing
   let topCategory = categoryMatches[0] ? categoryMatches[0].category : null;
   if (!topCategory) {
     topCategory = await fallbackCategoryMatch(prompt);
   }
 
-  // 2. Build Category Context Block
   let categoryContext = '';
   if (categoryMatches.length > 0) {
     categoryContext = 'RELEVANT CIVIC CATEGORY & DEPARTMENT CONTEXT:\n' +
@@ -187,7 +161,6 @@ async function generateGroundedComplaint({ prompt, language = 'en' }) {
     categoryContext = `RELEVANT CIVIC CATEGORY & DEPARTMENT CONTEXT:\nCategory: ${topCategory.categoryName}\nDepartment: ${topCategory.department}\nScope: ${topCategory.description}`;
   }
 
-  // 3. Build Knowledge Base Policy Context Block
   let knowledgeContext = '';
   if (knowledgeMatches.length > 0) {
     knowledgeContext = 'OFFICIAL GOVERNMENT POLICY & PROCEDURE GUIDANCE:\n' +
@@ -196,21 +169,19 @@ async function generateGroundedComplaint({ prompt, language = 'en' }) {
         .join('\n\n');
   }
 
-  // 4. Construct Grounded RAG Prompt
   const ragPrompt = [
     `You are CiviBridge, an AI assistant drafting official civic grievance petitions for local government departments.`,
-    `Your goal is to transform the user's input into a structured, formal, and respectful grievance petition.`,
+    `Your goal is to transform the user's input into a concise, structured formal petition body.`,
     ``,
     categoryContext,
     ``,
     knowledgeContext,
     ``,
     `INSTRUCTIONS:`,
-    `- Draft the formal petition strictly in ${targetLanguageName}.`,
-    `- Address the petition to the appropriate Municipal Department identified in the context.`,
-    `- Follow standard government petition structure: Subject Line, Addressee, Problem Details, Impact & Urgency, and Requested Action.`,
-    `- Ground the petition terms and structure in the provided government policy guidelines above.`,
-    `- Keep tone formal, concise, respectful, and actionable.`,
+    `- Draft the body text strictly in ${targetLanguageName}.`,
+    `- DO NOT include "TO:" or "SUBJECT:" lines as they are automatically generated in the letterhead template.`,
+    `- Include: Salutation, Problem Details, Impact & Urgency, Policy Reference, and Requested Action.`,
+    `- Keep tone formal, respectful, and concise so it fits on a single page.`,
     ``,
     `CITIZEN'S INITIAL PROBLEM DESCRIPTION:`,
     prompt,
@@ -218,7 +189,6 @@ async function generateGroundedComplaint({ prompt, language = 'en' }) {
     .filter(Boolean)
     .join('\n');
 
-  // 5. Generate Content (Gemini API with Fallback Protection)
   let draft = '';
   try {
     draft = await generateWithFallback(ragPrompt);

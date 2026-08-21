@@ -30,6 +30,15 @@ const QUICK_STARTERS = [
   },
 ];
 
+// Helper to strip accidental duplicate TO / SUBJECT headers from draft body
+function cleanDraftBody(text) {
+  if (!text) return '';
+  return text
+    .replace(/^SUBJECT:[^\n]*\n?/gmi, '')
+    .replace(/^TO:[^\n]*\n?/gmi, '')
+    .trim();
+}
+
 export default function CitizenPortal() {
   const [selectedLanguage, setSelectedLanguage] = useState('en');
   const [userPrompt, setUserPrompt] = useState('');
@@ -78,14 +87,14 @@ export default function CitizenPortal() {
     setMatchedKnowledge([]);
 
     try {
-      // 1. Run RAG Pipeline (Retrieve + Augment + Generate Grounded Petition)
+      // 1. Run RAG Pipeline
       const ragRes = await generateGroundedComplaint(userPrompt, selectedLanguage);
 
       setGeneratedDraft(ragRes.draft);
       setMatchedCategory(ragRes.topMatchCategory);
       setMatchedKnowledge(ragRes.matchedKnowledge || []);
 
-      // 2. Automatically save the grievance into MongoDB
+      // 2. Auto-save grievance to MongoDB
       const saveRes = await submitComplaint({
         rawText: userPrompt,
         detectedLanguage: selectedLanguage,
@@ -121,11 +130,12 @@ export default function CitizenPortal() {
 
     if (window.html2pdf) {
       const opt = {
-        margin: [0.4, 0.4, 0.4, 0.4],
+        margin: [0.2, 0.2, 0.2, 0.2], // 0.2 in margin ensures exact 1-page fit!
         filename: filename,
         image: { type: 'jpeg', quality: 0.98 },
-        html2canvas: { scale: 2, useCORS: true },
+        html2canvas: { scale: 2, useCORS: true, scrollY: 0 },
         jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' },
+        pagebreak: { mode: 'avoid-all' },
       };
       window.html2pdf().set(opt).from(element).save();
     } else {
@@ -223,7 +233,7 @@ export default function CitizenPortal() {
               )}
 
               <div className="rag-content mt-2">
-                <pre>{generatedDraft}</pre>
+                <pre>{cleanDraftBody(generatedDraft)}</pre>
               </div>
 
               <div className="rag-actions-row mt-3">
@@ -233,7 +243,7 @@ export default function CitizenPortal() {
                   onClick={() =>
                     setActiveModalPetition({
                       id: currentComplaintId || 'DRAFT',
-                      draft: generatedDraft,
+                      draft: cleanDraftBody(generatedDraft),
                       categoryName: matchedCategory?.categoryName || 'Civic Grievance',
                       department: matchedCategory?.department || 'Municipal Authority',
                       language: selectedLanguage,
@@ -295,7 +305,7 @@ export default function CitizenPortal() {
                       onClick={() =>
                         setActiveModalPetition({
                           id: c._id || c.id,
-                          draft: c.generatedDraft || c.rawText,
+                          draft: cleanDraftBody(c.generatedDraft || c.rawText),
                           categoryName: c.matchedCategoryId?.categoryName || 'Civic Grievance',
                           department: c.assignedDepartment || c.matchedCategoryId?.department || 'Municipal Authority',
                           language: c.detectedLanguage || 'en',
@@ -341,66 +351,69 @@ export default function CitizenPortal() {
               </div>
             </div>
 
-            {/* Formal Government Printable Document (Letterhead Design) */}
-            <div className="petition-document" id="printable-pdf-document">
-              <div className="doc-watermark">CiviBridge Official</div>
+            {/* Scrollable Container for Preview */}
+            <div className="petition-modal-scroll-area">
+              {/* Formal Government Printable Document (Letterhead Design - Single Page Fit) */}
+              <div className="petition-document" id="printable-pdf-document">
+                <div className="doc-watermark">CiviBridge Official</div>
 
-              {/* Header Letterhead */}
-              <div className="doc-letterhead-formal">
-                <div className="doc-emblem-seal">🏛️</div>
-                <div className="doc-header-text">
-                  <h3>MUNICIPAL CORPORATION & URBAN LOCAL BODY</h3>
-                  <p className="doc-subtitle-formal">Public Grievance Redressal & Citizen Welfare Cell</p>
-                  <p className="doc-portal-ref">Issued via CiviBridge AI Regional Language Portal (RAG System)</p>
+                {/* Header Letterhead */}
+                <div className="doc-letterhead-formal">
+                  <div className="doc-emblem-seal">🏛️</div>
+                  <div className="doc-header-text">
+                    <h3>MUNICIPAL CORPORATION & URBAN LOCAL BODY</h3>
+                    <p className="doc-subtitle-formal">Public Grievance Redressal & Citizen Welfare Cell</p>
+                    <p className="doc-portal-ref">Issued via CiviBridge AI Regional Language Portal (RAG System)</p>
+                  </div>
                 </div>
-              </div>
-              <div className="doc-header-line"></div>
+                <div className="doc-header-line"></div>
 
-              {/* Reference Grid */}
-              <div className="doc-meta-grid-formal">
-                <div className="meta-col">
-                  <p><strong>Tracking Ref ID:</strong> <span className="ref-highlight">#{activeModalPetition.id}</span></p>
-                  <p><strong>Date of Submission:</strong> {new Date(activeModalPetition.createdAt).toLocaleDateString()}</p>
-                </div>
-                <div className="meta-col text-right">
-                  <p><strong>Civic Category:</strong> {activeModalPetition.categoryName}</p>
-                  <p><strong>Petition Language:</strong> {activeModalPetition.language.toUpperCase()}</p>
-                </div>
-              </div>
-
-              {/* Addressee Section */}
-              <div className="doc-addressee-formal">
-                <p className="to-label">TO:</p>
-                <p className="addressee-title">The Competent Municipal Commissioner / Executive Engineer,</p>
-                <p className="addressee-dept">{activeModalPetition.department}</p>
-                <p className="addressee-office">Municipal Public Works & Urban Infrastructure Division</p>
-              </div>
-
-              {/* Subject Line */}
-              <div className="doc-subject-formal">
-                <span className="subj-tag">SUBJECT:</span> Formal Citizen Petition regarding <u>{activeModalPetition.categoryName}</u> in local jurisdiction.
-              </div>
-
-              {/* Main Body */}
-              <div className="doc-body-formal">
-                <div className="doc-text-block-formal">
-                  {activeModalPetition.draft}
-                </div>
-              </div>
-
-              {/* Footer Stamps & Signature */}
-              <div className="doc-footer-formal mt-4">
-                <div className="digital-verification-stamp">
-                  <div className="stamp-badge">
-                    <span>DIGITALLY VERIFIED</span>
-                    <small>RAG Policy Grounded</small>
+                {/* Reference Grid */}
+                <div className="doc-meta-grid-formal">
+                  <div className="meta-col">
+                    <p><strong>Tracking Ref ID:</strong> <span className="ref-highlight">#{activeModalPetition.id}</span></p>
+                    <p><strong>Date of Submission:</strong> {new Date(activeModalPetition.createdAt).toLocaleDateString()}</p>
+                  </div>
+                  <div className="meta-col text-right">
+                    <p><strong>Civic Category:</strong> {activeModalPetition.categoryName}</p>
+                    <p><strong>Petition Language:</strong> {activeModalPetition.language.toUpperCase()}</p>
                   </div>
                 </div>
 
-                <div className="doc-signature-block">
-                  <div className="signature-line"></div>
-                  <p className="sig-title">Signature / Mark of Citizen Petitioner</p>
-                  <small className="sig-sub">Submitted via Citizen Public Self-Service Portal</small>
+                {/* Addressee Section */}
+                <div className="doc-addressee-formal">
+                  <p className="to-label">TO:</p>
+                  <p className="addressee-title">The Competent Municipal Commissioner / Executive Engineer,</p>
+                  <p className="addressee-dept">{activeModalPetition.department}</p>
+                  <p className="addressee-office">Municipal Public Works & Urban Infrastructure Division</p>
+                </div>
+
+                {/* Subject Line */}
+                <div className="doc-subject-formal">
+                  <span className="subj-tag">SUBJECT:</span> Formal Citizen Petition regarding <u>{activeModalPetition.categoryName}</u> in local jurisdiction.
+                </div>
+
+                {/* Main Body */}
+                <div className="doc-body-formal">
+                  <div className="doc-text-block-formal">
+                    {activeModalPetition.draft}
+                  </div>
+                </div>
+
+                {/* Footer Stamps & Signature */}
+                <div className="doc-footer-formal">
+                  <div className="digital-verification-stamp">
+                    <div className="stamp-badge">
+                      <span>DIGITALLY VERIFIED</span>
+                      <small>RAG Policy Grounded</small>
+                    </div>
+                  </div>
+
+                  <div className="doc-signature-block">
+                    <div className="signature-line"></div>
+                    <p className="sig-title">Signature / Mark of Citizen Petitioner</p>
+                    <small className="sig-sub">Submitted via Citizen Public Self-Service Portal</small>
+                  </div>
                 </div>
               </div>
             </div>
