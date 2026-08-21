@@ -10,10 +10,10 @@ function getClient() {
   return _client;
 }
 
-// Generate embedding vector using Gemini (with model fallbacks)
+// Generate embedding vector using Gemini
 async function embedText(text) {
   const client = getClient();
-  const models = ['text-embedding-004', 'embedding-001'];
+  const models = ['text-embedding-004'];
   let lastErr = null;
 
   for (const m of models) {

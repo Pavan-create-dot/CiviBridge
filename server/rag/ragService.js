@@ -20,8 +20,8 @@ function getClient() {
  */
 async function generateWithFallback(prompt) {
   const client = getClient();
-  const primaryModel = process.env.GEMINI_MODEL || 'gemini-1.5-flash';
-  const fallbackModels = [primaryModel, 'gemini-1.5-flash', 'gemini-2.0-flash', 'gemini-pro'];
+  const primaryModel = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
+  const fallbackModels = Array.from(new Set([primaryModel, 'gemini-2.5-flash', 'gemini-1.5-flash', 'gemini-1.5-pro']));
 
   let lastError = null;
   for (const modelName of fallbackModels) {
