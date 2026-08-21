@@ -1,9 +1,8 @@
-// CitizenPortal component — Multilingual RAG grievance drafting, tracking & official petition export
 import React, { useState, useEffect } from 'react';
-import { draftComplaintWithRAG, submitComplaint, getMyComplaints } from '../services/api';
+import { generateGroundedComplaint, submitComplaint, getMyComplaints } from '../services/api';
 
 const LANGUAGES = [
-  { code: 'en', label: 'English (English)' },
+  { code: 'en', label: 'English' },
   { code: 'te', label: 'Telugu (తెలుగు)' },
   { code: 'hi', label: 'Hindi (हिंदी)' },
 ];
@@ -12,42 +11,44 @@ const QUICK_STARTERS = [
   {
     icon: '🕳️',
     label: 'Road Pothole',
-    text: 'There is a severe pothole near the main market road causing vehicle damage and traffic hazards. Stagnant rainwater collects inside it.',
+    text: 'There is a severe pothole near the main market road causing vehicle damage and traffic hazards.',
   },
   {
     icon: '💡',
-    label: 'Broken Streetlight',
-    text: 'Streetlights on 4th cross street have not been working for the past week, making the road unsafe for pedestrians at night.',
+    label: 'Streetlight Broken',
+    text: 'Streetlights on 4th cross street have not been working for a week, making the road dark and unsafe.',
   },
   {
     icon: '🚰',
-    label: 'Water Pipeline Leak',
-    text: 'Drinking water supply pipeline is broken near sector 5, causing massive clean water wastage and low pressure in houses.',
+    label: 'Water Leakage',
+    text: 'Drinking water pipeline is leaking heavily near sector 5, causing water wastage and low pressure.',
   },
   {
     icon: '🗑️',
-    label: 'Garbage Overflow',
-    text: 'Municipal garbage dump near the public school has been overflowing for 4 days, emitting foul smell and health hazards.',
+    label: 'Garbage Dump',
+    text: 'Garbage has not been collected near the public school for 4 days, emitting foul smell.',
   },
 ];
 
 export default function CitizenPortal() {
-  // RAG Drafting State
   const [selectedLanguage, setSelectedLanguage] = useState('en');
   const [userPrompt, setUserPrompt] = useState('');
-  const [generating, setGenerating] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [successMessage, setSuccessMessage] = useState('');
+
+  // Generated RAG output
   const [generatedDraft, setGeneratedDraft] = useState('');
-  const [matchedCategories, setMatchedCategories] = useState([]);
-  const [draftError, setDraftError] = useState('');
+  const [matchedCategory, setMatchedCategory] = useState(null);
+  const [matchedKnowledge, setMatchedKnowledge] = useState([]);
+  const [currentComplaintId, setCurrentComplaintId] = useState(null);
 
-  // Complaint Submission & List State
-  const [submitting, setSubmitting] = useState(false);
-  const [submitSuccess, setSubmitSuccess] = useState('');
-  const [complaints, setComplaints] = useState([]);
-  const [loadingComplaints, setLoadingComplaints] = useState(true);
+  // User submitted complaints list
+  const [myComplaints, setMyComplaints] = useState([]);
+  const [loadingComplaints, setLoadingComplaints] = useState(false);
 
-  // Official Petition Modal State
-  const [petitionModalData, setPetitionModalData] = useState(null);
+  // Petition Preview Modal for PDF Download
+  const [activeModalPetition, setActiveModalPetition] = useState(null);
 
   useEffect(() => {
     fetchComplaints();
@@ -57,132 +58,89 @@ export default function CitizenPortal() {
     setLoadingComplaints(true);
     try {
       const data = await getMyComplaints();
-      setComplaints(data.complaints || []);
+      setMyComplaints(data.complaints || []);
     } catch (err) {
-      console.error('Failed to fetch complaints:', err);
+      console.error('Failed to load my complaints:', err);
     } finally {
       setLoadingComplaints(false);
     }
   };
 
-  const handleGenerateRAG = async (e) => {
-    if (e) e.preventDefault();
+  const handleGenerateAndSubmit = async (e) => {
+    e.preventDefault();
     if (!userPrompt.trim()) return;
 
-    setGenerating(true);
-    setDraftError('');
-    setSubmitSuccess('');
+    setLoading(true);
+    setError('');
+    setSuccessMessage('');
+    setGeneratedDraft('');
+    setMatchedCategory(null);
+    setMatchedKnowledge([]);
 
     try {
-      const data = await draftComplaintWithRAG(userPrompt, selectedLanguage);
-      setGeneratedDraft(data.draft);
-      setMatchedCategories(data.matchedCategories || []);
-    } catch (err) {
-      setDraftError(err.message || 'Failed to generate grievance draft.');
-    } finally {
-      setGenerating(false);
-    }
-  };
+      // 1. Run RAG Pipeline (Retrieve + Augment + Generate Grounded Petition)
+      const ragRes = await generateGroundedComplaint(userPrompt, selectedLanguage);
 
-  const handleSubmitGrievance = async () => {
-    const textToSubmit = generatedDraft || userPrompt;
-    if (!textToSubmit.trim()) return;
+      setGeneratedDraft(ragRes.draft);
+      setMatchedCategory(ragRes.topMatchCategory);
+      setMatchedKnowledge(ragRes.matchedKnowledge || []);
 
-    setSubmitting(true);
-    setDraftError('');
-    setSubmitSuccess('');
+      // 2. Automatically save the grievance into MongoDB
+      const saveRes = await submitComplaint({
+        rawText: userPrompt,
+        detectedLanguage: selectedLanguage,
+        generatedDraft: ragRes.draft,
+        matchedCategoryId: ragRes.topMatchCategory ? (ragRes.topMatchCategory._id || ragRes.topMatchCategory.id) : null,
+      });
 
-    try {
-      const res = await submitComplaint(textToSubmit, selectedLanguage);
-      setSubmitSuccess(`Grievance submitted successfully! Tracking ID: #${res.complaint.id}`);
-      setUserPrompt('');
-      setGeneratedDraft('');
-      setMatchedCategories([]);
+      const savedId = saveRes.complaint._id || saveRes.complaint.id;
+      setCurrentComplaintId(savedId);
+      setSuccessMessage(`Grounded Petition generated & recorded! Tracking ID: #${savedId}`);
+
       fetchComplaints();
     } catch (err) {
-      setDraftError(err.message || 'Failed to submit grievance.');
+      setError(err.message || 'Failed to generate petition.');
     } finally {
-      setSubmitting(false);
+      setLoading(false);
     }
   };
 
-  const handlePrint = () => {
-    window.print();
-  };
+  const downloadPDF = (elementId, filename = 'CiviBridge-Grievance-Petition.pdf') => {
+    const element = document.getElementById(elementId);
+    if (!element) return;
 
-  // KPI calculations
-  const totalCount = complaints.length;
-  const inProgressCount = complaints.filter(
-    (c) => c.status !== 'resolved' && c.status !== 'rejected'
-  ).length;
-  const resolvedCount = complaints.filter((c) => c.status === 'resolved').length;
-
-  const getStepStatus = (complaintStatus, stepIndex) => {
-    // Steps: 0: Submitted, 1: AI Routed, 2: In Action, 3: Resolved
-    if (complaintStatus === 'rejected') return stepIndex === 0 ? 'completed' : 'rejected';
-    if (complaintStatus === 'resolved') return 'completed';
-    if (complaintStatus === 'in_progress') return stepIndex <= 2 ? 'completed' : 'pending';
-    if (complaintStatus === 'routed' || complaintStatus === 'classified') {
-      return stepIndex <= 1 ? 'completed' : 'pending';
+    if (window.html2pdf) {
+      const opt = {
+        margin: 0.5,
+        filename: filename,
+        image: { type: 'jpeg', quality: 0.98 },
+        html2canvas: { scale: 2 },
+        jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' },
+      };
+      window.html2pdf().set(opt).from(element).save();
+    } else {
+      window.print();
     }
-    return stepIndex === 0 ? 'completed' : 'pending';
   };
 
   return (
     <div className="citizen-portal">
-      {/* Portal Header */}
       <div className="portal-header">
-        <h1>Citizen Grievance Portal</h1>
+        <h1>Citizen Public Grievance Portal</h1>
         <p className="portal-subtitle">
-          Draft formal civic grievance petitions in your preferred regional language using Gemini AI & semantic retrieval, then track resolution progress.
+          Describe your problem in your native language. Our AI uses RAG (Retrieval-Augmented Generation) to classify your issue and generate a grounded, official government complaint petition ready for PDF download.
         </p>
       </div>
 
-      {/* Citizen Impact Overview Banner */}
-      <div className="citizen-stats-banner">
-        <div className="stat-card">
-          <div className="stat-icon">📋</div>
-          <div className="stat-info">
-            <span className="stat-value">{totalCount}</span>
-            <span className="stat-label">Total Grievances</span>
-          </div>
-        </div>
-        <div className="stat-card">
-          <div className="stat-icon active">⏳</div>
-          <div className="stat-info">
-            <span className="stat-value">{inProgressCount}</span>
-            <span className="stat-label">Under Triage / Action</span>
-          </div>
-        </div>
-        <div className="stat-card">
-          <div className="stat-icon resolved">✅</div>
-          <div className="stat-info">
-            <span className="stat-value">{resolvedCount}</span>
-            <span className="stat-label">Resolved Issues</span>
-          </div>
-        </div>
-        <div className="stat-card">
-          <div className="stat-icon ai">⚡</div>
-          <div className="stat-info">
-            <span className="stat-value">100%</span>
-            <span className="stat-label">AI RAG Auto-Routed</span>
-          </div>
-        </div>
-      </div>
-
       <div className="portal-grid">
-        {/* Section 1: AI Multilingual Complaint Assistant */}
+        {/* Left Column: Complaint Generator */}
         <div className="card drafting-card">
           <div className="card-header">
-            <div className="icon-title">
-              <span className="card-icon">✨</span>
-              <h2>AI Multilingual Grievance Assistant</h2>
-            </div>
+            <h2>✨ AI Grievance Assistant</h2>
           </div>
 
-          {/* One-Click Quick Starters */}
           <div className="quick-starters-section">
-            <label className="quick-label">⚡ Quick Issue Templates (Click to fill):</label>
+            <label className="quick-label">Quick Sample Topics:</label>
             <div className="quick-chips">
               {QUICK_STARTERS.map((q, idx) => (
                 <button
@@ -197,9 +155,9 @@ export default function CitizenPortal() {
             </div>
           </div>
 
-          <form onSubmit={handleGenerateRAG} className="draft-form">
+          <form onSubmit={handleGenerateAndSubmit} className="draft-form mt-3">
             <div className="form-group">
-              <label>Select Preferred Regional Language</label>
+              <label>Select Preferred Output Language</label>
               <div className="language-selector">
                 {LANGUAGES.map((lang) => (
                   <button
@@ -215,204 +173,128 @@ export default function CitizenPortal() {
             </div>
 
             <div className="form-group">
-              <label>Describe Your Civic Issue / Initial Notes</label>
+              <label>Describe Your Grievance (in English, Telugu, or Hindi)</label>
               <textarea
                 rows="4"
                 required
-                placeholder="Example: There is a severe pothole near the main market road causing accidents. Stagnant rainwater collects inside it..."
+                placeholder="Example: మా వీధిలో రోడ్డు గుంతలు చాలా ఉన్నాయి... / Streetlight broken near market..."
                 value={userPrompt}
                 onChange={(e) => setUserPrompt(e.target.value)}
               ></textarea>
             </div>
 
-            <div className="form-actions">
-              <button
-                type="submit"
-                className="btn-primary"
-                disabled={generating || !userPrompt.trim()}
-              >
-                {generating ? 'Retrieving Context & Drafting...' : 'Generate Formal Petition'}
-              </button>
-
-              <button
-                type="button"
-                className="btn-secondary"
-                disabled={submitting || !userPrompt.trim()}
-                onClick={handleSubmitGrievance}
-              >
-                Submit Direct Without Draft
-              </button>
-            </div>
+            <button type="submit" className="btn-primary btn-full" disabled={loading || !userPrompt.trim()}>
+              {loading ? 'Running RAG Retrieval & Drafting...' : '⚡ Generate Grounded Petition'}
+            </button>
           </form>
 
-          {draftError && <div className="alert-box error mt-3">{draftError}</div>}
-          {submitSuccess && <div className="alert-box success mt-3">{submitSuccess}</div>}
+          {error && <div className="alert-box error mt-3">{error}</div>}
+          {successMessage && <div className="alert-box success mt-3">{successMessage}</div>}
 
-          {/* RAG Generated Output Box */}
+          {/* Generated RAG Grounded Output Display */}
           {generatedDraft && (
-            <div className="rag-output-box">
+            <div className="rag-output-box mt-4">
               <div className="rag-header">
-                <h3>Formal Grievance Petition Draft</h3>
+                <h3>Official Grounded Petition Draft</h3>
                 <span className="lang-tag">{selectedLanguage.toUpperCase()}</span>
               </div>
 
-              <div className="rag-content">
-                <pre>{generatedDraft}</pre>
-              </div>
-
-              {matchedCategories.length > 0 && (
-                <div className="matched-categories">
-                  <h4>Relevant Civic Categories & Department Matches:</h4>
-                  <div className="category-chips">
-                    {matchedCategories.map((cat) => (
-                      <div key={cat.id} className="category-chip">
-                        <span className="cat-name">{cat.categoryName}</span>
-                        <span className="dept-name">({cat.department})</span>
-                        <span className="score">Match: {(cat.score * 100).toFixed(0)}%</span>
-                      </div>
-                    ))}
-                  </div>
+              {matchedCategory && (
+                <div className="matched-category-banner">
+                  <span><strong>AI Classification:</strong> {matchedCategory.categoryName}</span>
+                  <span><strong>Department:</strong> {matchedCategory.department}</span>
                 </div>
               )}
+
+              {matchedKnowledge.length > 0 && (
+                <div className="grounding-sources">
+                  <small><strong>Grounded in Government Policy Docs:</strong> {matchedKnowledge.map(k => k.title).join(', ')}</small>
+                </div>
+              )}
+
+              <div className="rag-content mt-2">
+                <pre>{generatedDraft}</pre>
+              </div>
 
               <div className="rag-actions-row mt-3">
                 <button
                   type="button"
                   className="btn-success"
-                  disabled={submitting}
-                  onClick={handleSubmitGrievance}
-                >
-                  {submitting ? 'Submitting Petition...' : 'Approve & Submit Grievance'}
-                </button>
-                <button
-                  type="button"
-                  className="btn-outline-print"
                   onClick={() =>
-                    setPetitionModalData({
-                      id: 'DRAFT-' + Date.now().toString().slice(-6),
-                      rawText: userPrompt,
-                      petitionBody: generatedDraft,
+                    setActiveModalPetition({
+                      id: currentComplaintId || 'DRAFT',
+                      draft: generatedDraft,
+                      categoryName: matchedCategory?.categoryName || 'Civic Grievance',
+                      department: matchedCategory?.department || 'Municipal Authority',
                       language: selectedLanguage,
-                      department: matchedCategories[0]?.department || 'Municipal Corporation',
-                      categoryName: matchedCategories[0]?.categoryName || 'Civic Grievance',
                       createdAt: new Date().toISOString(),
                     })
                   }
                 >
-                  📄 Download Official Petition
+                  📄 Preview & Download PDF
                 </button>
               </div>
             </div>
           )}
         </div>
 
-        {/* Section 2: Grievance Tracker with Visual Timeline */}
+        {/* Right Column: My Grievances History */}
         <div className="card tracker-card">
           <div className="card-header">
-            <div className="icon-title">
-              <span className="card-icon">📋</span>
-              <h2>My Submitted Grievances</h2>
-            </div>
-            <button className="btn-secondary btn-sm" onClick={fetchComplaints}>
-              Refresh List
-            </button>
+            <h2>📋 My Filed Grievances</h2>
+            <button className="btn-secondary btn-sm" onClick={fetchComplaints}>Refresh</button>
           </div>
 
           {loadingComplaints ? (
             <div className="loading-spinner">Loading your grievances...</div>
-          ) : complaints.length === 0 ? (
-            <div className="empty-state">
-              <p>No grievances filed yet. Use the assistant on the left to submit your first issue.</p>
-            </div>
+          ) : myComplaints.length === 0 ? (
+            <div className="empty-state">No grievances submitted yet. Fill the form to generate one.</div>
           ) : (
             <div className="complaint-list">
-              {complaints.map((c) => (
-                <div key={c.id} className="complaint-item enhanced">
+              {myComplaints.map((c) => (
+                <div key={c._id || c.id} className="complaint-item">
                   <div className="complaint-item-header">
-                    <div className="item-title">
-                      <span className="complaint-id">#{c.id}</span>
-                      <span className={`status-badge status-${c.status}`}>{c.status.replace('_', ' ')}</span>
-                      <span className={`priority-badge priority-${c.priority}`}>{c.priority} priority</span>
-                    </div>
-                    <span className="complaint-date">
-                      {new Date(c.createdAt).toLocaleDateString()}
-                    </span>
+                    <span className="complaint-id">#{c._id || c.id}</span>
+                    <span className={`status-badge status-${c.status}`}>{c.status}</span>
                   </div>
 
-                  {/* Visual Stepper */}
-                  <div className="grievance-stepper">
-                    <div className={`step ${getStepStatus(c.status, 0)}`}>
-                      <div className="step-circle">1</div>
-                      <span className="step-label">Submitted</span>
-                    </div>
-                    <div className="step-bar"></div>
-                    <div className={`step ${getStepStatus(c.status, 1)}`}>
-                      <div className="step-circle">2</div>
-                      <span className="step-label">AI Routed</span>
-                    </div>
-                    <div className="step-bar"></div>
-                    <div className={`step ${getStepStatus(c.status, 2)}`}>
-                      <div className="step-circle">3</div>
-                      <span className="step-label">In Action</span>
-                    </div>
-                    <div className="step-bar"></div>
-                    <div className={`step ${getStepStatus(c.status, 3)}`}>
-                      <div className="step-circle">4</div>
-                      <span className="step-label">Resolved</span>
-                    </div>
-                  </div>
+                  <p className="raw-text"><strong>Issue:</strong> {c.rawText}</p>
 
-                  <div className="complaint-item-body">
-                    <p className="raw-text"><strong>Complaint Details:</strong> {c.rawText}</p>
-                    {c.translatedText && (
-                      <p className="translated-text"><strong>English Translation:</strong> {c.translatedText}</p>
-                    )}
-
-                    {/* Admin Inspection Notes if available */}
-                    {c.adminNotes && (
-                      <div className="admin-notes-box">
-                        <span className="notes-icon">📌</span>
-                        <div>
-                          <strong>Officer Inspection Remarks:</strong> {c.adminNotes}
-                        </div>
-                      </div>
-                    )}
-
-                    <div className="item-meta">
+                  <div className="item-meta mt-1">
+                    {c.matchedCategoryId && (
                       <span className="meta-tag">
-                        <strong>Language:</strong> {c.detectedLanguage.toUpperCase()}
+                        <strong>Category:</strong> {c.matchedCategoryId.categoryName}
                       </span>
-                      {c.matchedCategory && (
-                        <span className="meta-tag">
-                          <strong>Category:</strong> {c.matchedCategory.categoryName}
-                        </span>
-                      )}
-                      {c.assignedDepartment && (
-                        <span className="meta-tag dept">
-                          <strong>Department:</strong> {c.assignedDepartment}
-                        </span>
-                      )}
-                    </div>
+                    )}
+                    {c.assignedDepartment && (
+                      <span className="meta-tag dept">
+                        <strong>Dept:</strong> {c.assignedDepartment}
+                      </span>
+                    )}
+                  </div>
 
-                    <div className="item-actions mt-2">
-                      <button
-                        type="button"
-                        className="btn-link-print"
-                        onClick={() =>
-                          setPetitionModalData({
-                            id: c.id,
-                            rawText: c.rawText,
-                            petitionBody: c.translatedText || c.rawText,
-                            language: c.detectedLanguage,
-                            department: c.assignedDepartment || c.matchedCategory?.department || 'Municipal Authority',
-                            categoryName: c.matchedCategory?.categoryName || 'Civic Grievance',
-                            createdAt: c.createdAt,
-                          })
-                        }
-                      >
-                        📄 View & Print Official Petition Letter
-                      </button>
+                  {c.adminNotes && (
+                    <div className="admin-notes-box mt-2">
+                      <small><strong>Officer Remarks:</strong> {c.adminNotes}</small>
                     </div>
+                  )}
+
+                  <div className="item-actions mt-2">
+                    <button
+                      className="btn-secondary btn-sm"
+                      onClick={() =>
+                        setActiveModalPetition({
+                          id: c._id || c.id,
+                          draft: c.generatedDraft || c.rawText,
+                          categoryName: c.matchedCategoryId?.categoryName || 'Civic Grievance',
+                          department: c.assignedDepartment || c.matchedCategoryId?.department || 'Municipal Authority',
+                          language: c.detectedLanguage || 'en',
+                          createdAt: c.createdAt,
+                        })
+                      }
+                    >
+                      📄 Download Official PDF
+                    </button>
                   </div>
                 </div>
               ))}
@@ -421,74 +303,71 @@ export default function CitizenPortal() {
         </div>
       </div>
 
-      {/* Official Government Petition Modal */}
-      {petitionModalData && (
-        <div className="modal-overlay" onClick={() => setPetitionModalData(null)}>
+      {/* Official Government Petition Modal for PDF Generation */}
+      {activeModalPetition && (
+        <div className="modal-overlay" onClick={() => setActiveModalPetition(null)}>
           <div className="modal-content petition-modal" onClick={(e) => e.stopPropagation()}>
             <div className="petition-modal-header no-print">
-              <h2>Official Civic Grievance Petition</h2>
+              <h2>Official Civic Petition Document</h2>
               <div className="modal-header-actions">
-                <button type="button" className="btn-primary btn-sm" onClick={handlePrint}>
-                  🖨️ Print / Save as PDF
+                <button
+                  type="button"
+                  className="btn-primary btn-sm"
+                  onClick={() => downloadPDF('printable-pdf-document', `CiviBridge-Petition-${activeModalPetition.id}.pdf`)}
+                >
+                  📥 Download PDF
                 </button>
-                <button type="button" className="btn-close" onClick={() => setPetitionModalData(null)}>
-                  ✕
-                </button>
+                <button type="button" className="btn-close" onClick={() => setActiveModalPetition(null)}>✕</button>
               </div>
             </div>
 
-            {/* Formal Government Letterhead Paper */}
-            <div className="petition-document" id="printable-petition">
+            {/* Formal Government Printable Document */}
+            <div className="petition-document" id="printable-pdf-document">
               <div className="doc-letterhead">
                 <div className="doc-emblem">🏛️</div>
-                <h3>MUNICIPAL CORPORATION CIVIC GRIEVANCE PETITION</h3>
-                <p className="doc-subhead">Citizen Public Redressal & Triage System (CiviBridge)</p>
+                <h3>MUNICIPAL CORPORATION CIVIC PETITION</h3>
+                <p className="doc-subhead">Public Grievance & Redressal Portal (CiviBridge RAG System)</p>
                 <div className="doc-divider"></div>
               </div>
 
               <div className="doc-meta-grid">
                 <div>
-                  <p><strong>Tracking Ref No:</strong> #{petitionModalData.id}</p>
-                  <p><strong>Date of Filing:</strong> {new Date(petitionModalData.createdAt).toLocaleDateString()}</p>
+                  <p><strong>Tracking Ref No:</strong> #{activeModalPetition.id}</p>
+                  <p><strong>Date:</strong> {new Date(activeModalPetition.createdAt).toLocaleDateString()}</p>
                 </div>
                 <div className="text-right">
-                  <p><strong>Category:</strong> {petitionModalData.categoryName}</p>
-                  <p><strong>Language:</strong> {petitionModalData.language?.toUpperCase()}</p>
+                  <p><strong>Category:</strong> {activeModalPetition.categoryName}</p>
+                  <p><strong>Language:</strong> {activeModalPetition.language.toUpperCase()}</p>
                 </div>
               </div>
 
               <div className="doc-addressee">
                 <p><strong>TO:</strong></p>
-                <p className="addressee-title">The Competent Authority / Executive Officer,</p>
-                <p className="addressee-dept">{petitionModalData.department}</p>
-                <p>Municipal Corporation & Urban Development Body</p>
+                <p className="addressee-title">The Executive Commissioner / Competent Authority,</p>
+                <p className="addressee-dept">{activeModalPetition.department}</p>
+                <p>Municipal Corporation Authority</p>
               </div>
 
               <div className="doc-subject">
-                <strong>SUBJECT:</strong> Formal Citizen Petition regarding <u>{petitionModalData.categoryName}</u> in local jurisdiction.
+                <strong>SUBJECT:</strong> Formal Public Petition regarding <u>{activeModalPetition.categoryName}</u>.
               </div>
 
               <div className="doc-body">
-                <p className="salutation">Respected Sir / Madam,</p>
                 <div className="doc-text-block">
-                  {petitionModalData.petitionBody}
+                  {activeModalPetition.draft}
                 </div>
-                <p className="petition-closing">
-                  I kindly request the concerned department officers to inspect the aforementioned location and take prompt corrective measures in public interest.
-                </p>
               </div>
 
-              <div className="doc-footer-signatures">
+              <div className="doc-footer-signatures mt-4">
                 <div className="doc-stamp-area">
                   <div className="digital-seal">
                     <span>DIGITALLY VERIFIED</span>
-                    <small>CiviBridge RAG Portal</small>
+                    <small>CiviBridge RAG System</small>
                   </div>
                 </div>
                 <div className="doc-signature-box">
                   <div className="sign-line"></div>
-                  <p>Signature / Thumb Impression of Citizen</p>
-                  <small>Submitted via Citizen Self-Service Portal</small>
+                  <p>Signature of Petitioner Citizen</p>
                 </div>
               </div>
             </div>

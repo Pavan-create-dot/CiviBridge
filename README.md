@@ -1,143 +1,127 @@
-# CiviBridge — AI-Powered Multilingual Civic Grievance Assistant
+# CiviBridge — Regional Language Civic Grievance Assistant
 
-> An enterprise-grade, multilingual civic grievance assistant enabling citizens to draft, understand, and track municipal complaints in their regional language using **Retrieval-Augmented Generation (RAG)**, **Vector Search**, and **Google Gemini AI**.
-
----
-
-## 💡 The Problem & Solution
-
-* **The Problem**: In multilingual countries like India, millions struggle with civic portals due to language barriers and bureaucratic jargon. Most portals only accept formal legal complaints in English or official state languages.
-* **The Solution**: **CiviBridge** allows citizens to submit grievances in **English, Telugu, or Hindi**. Gemini models translate and extract semantics, an in-database **Vector RAG pipeline** auto-classifies the issue against civic categories, and an **Admin Triage Portal** enables municipal officers to review, route, and resolve grievances efficiently.
+CiviBridge is a full-stack Web application built with **React, Node.js (Express), MongoDB Atlas, and Google Gemini AI**. It enables citizens to file civic grievances in their native regional languages (Telugu, Hindi, English) and uses **Retrieval-Augmented Generation (RAG)** to classify, ground, and generate official government petition documents ready for PDF download.
 
 ---
 
-## 🛠️ Tech Stack & Architecture
+## 🚀 Key Features & Project Flow
+
+### 1. Citizen Portal
+- **Native Language Description**: Citizens describe their problem in English, Telugu, or Hindi.
+- **RAG Classification & Grounding**:
+  1. If non-English input is provided, Gemini translates it into English.
+  2. **Dual Retrieval**: Text embedding vector is computed using Gemini (`text-embedding-004`) and compared via **Cosine Similarity** against:
+     - `GrievanceCategory` embeddings stored in MongoDB (finds responsible municipal department).
+     - `KnowledgeDoc` embeddings stored in MongoDB (retrieves official government rules & petition format requirements).
+  3. **Augment & Generate**: Gemini LLM drafts a formal, structured petition in the user's requested language.
+- **Download Official PDF**: Citizens can directly preview and download a formatted official petition document as a PDF file.
+
+### 2. Department Admin Portal
+- **RAG Knowledge Base Management**: Admin can add, update, or delete government policy documents. Any new document is automatically embedded via Gemini and stored in MongoDB to ground future complaints.
+- **Grievance Triage**: Admin can view all filed grievances, run AI vector auto-routing, update priority levels, change status (`pending`, `in_progress`, `resolved`), and log inspection remarks.
+
+---
+
+## 🏗️ Architecture & RAG Flow
 
 ```
-  ┌─────────────────────────────────────────────────────────────┐
-  │                   React + Vite Frontend                     │
-  │     (Citizen Grievance Portal & Admin Triage Dashboard)     │
-  └──────────────────────────────┬──────────────────────────────┘
-                                 │ REST API (JWT Auth)
-                                 ▼
-  ┌─────────────────────────────────────────────────────────────┐
-  │                 Node.js + Express Backend                   │
-  │     (Controllers, Validation, RBAC, RAG Pipeline)           │
-  └──────────────┬──────────────────────────────┬───────────────┘
-                 │                              │
-                 ▼                              ▼
-  ┌─────────────────────────────┐┌──────────────────────────────┐
-  │   MongoDB Atlas + Mongoose  ││    Google Gemini 2.5 &       │
-  │  (Users, Grievances, Vector ││     Text Embeddings          │
-  │     Embeddings Storage)     ││ (Translation & RAG Drafting) │
-  └─────────────────────────────┘└──────────────────────────────┘
+┌─────────────────────────────────────────────────────────────┐
+│                    RAG PIPELINE FLOW                        │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│  1. EMBED (Gemini API)                                      │
+│     User input text  ─────────►  768-dim Vector             │
+│                                                             │
+│  2. RETRIEVE (MongoDB Vector Search)                        │
+│     Vector  ──► Cosine Similarity against MongoDB Docs:     │
+│                 • GrievanceCategories  (Dept Routing)       │
+│                 • KnowledgeDocs        (Grounding Rules)    │
+│                                                             │
+│  3. AUGMENT (Prompt Construction)                           │
+│     System Prompt + Retrieved Context + Citizen Input      │
+│                                                             │
+│  4. GENERATE (Gemini LLM)                                   │
+│     Output: Formal Grounded Grievance Petition             │
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
 ```
-
-| Layer | Technology | Purpose |
-| :--- | :--- | :--- |
-| **Frontend** | React 18, Vite | Responsive UI with Citizen Portal & Admin Triage Dashboard |
-| **Backend** | Node.js, Express | RESTful API server with Zod validation and RBAC middleware |
-| **Database** | MongoDB Atlas, Mongoose | Cloud document store for users, grievances, and categories |
-| **Vector Store** | MongoDB Vector Embeddings | Stores 768-dim Gemini embeddings directly inside category documents |
-| **Similarity Engine** | Cosine Similarity | Sub-millisecond semantic retrieval matching grievances to departments |
-| **AI / LLM** | Google Gemini 2.5 Flash | Neural translation and context-augmented formal grievance drafting |
-| **Auth & Security** | JWT, bcrypt (12 rounds) | Role-Based Access Control (`citizen` vs. `admin`) |
 
 ---
 
-## 📁 Clean Repository Structure
+## 📁 Project Structure
 
 ```
 CiviBridge/
-├── client/                     # React + Vite Single Page Application
-│   ├── src/
-│   │   ├── components/         # Navbar, AuthModal, CitizenPortal, AdminDashboard
-│   │   ├── context/            # AuthContext (JWT state management)
-│   │   └── services/           # api.js (Axios/Fetch HTTP client wrapper)
-│   └── vite.config.js
-├── server/                     # Node.js + Express REST API
-│   ├── scripts/
-│   │   └── seedMongo.js        # Seeds categories & generates Gemini embeddings
-│   ├── src/
-│   │   ├── controllers/        # auth, complaint, triage, and rag controllers
-│   │   ├── db/                 # mongoClient.js (Mongoose connection pool)
-│   │   ├── middleware/         # authMiddleware.js (JWT & Admin guards)
-│   │   ├── models/             # User, Complaint, GrievanceCategory (Mongoose)
-│   │   ├── rag/                # ragService.js & vectorStore.js (Semantic retrieval)
-│   │   ├── routes/             # Express route endpoints
-│   │   ├── services/           # translationService.js (Gemini AI integration)
-│   │   ├── utils/              # embeddings.js (Vector embeddings & Cosine similarity)
-│   │   ├── validators/         # Zod schemas for request validation
-│   │   └── index.js            # Express server entry point
-│   └── tests/                  # Automated integration test suite
-├── docs/                       # Architecture and deployment documentation
-├── README.md                   # Project documentation
-├── .env.example                # Sample environment template
-└── package.json                # Root package with npm workspaces
+├── .env                  # MongoDB URI, JWT secret, Gemini API Key
+├── render.yaml           # Backend deployment manifest for Render
+├── README.md             # Project presentation & guide
+├── package.json          # Launch controller
+│
+├── client/               # React + Vite Frontend
+│   ├── index.html        # Includes html2pdf.js for PDF downloads
+│   ├── vercel.json       # Vercel deployment config
+│   └── src/
+│       ├── components/   # CitizenPortal, AdminDashboard, Navbar, AuthModal
+│       ├── context/      # AuthContext
+│       └── services/     # API fetch wrapper
+│
+└── server/               # Node.js + Express Backend
+    ├── db.js             # MongoDB Mongoose connection
+    ├── seed.js           # Seeds categories & knowledge base with embeddings
+    ├── index.js          # Express server entry point
+    ├── models/           # User, Complaint, GrievanceCategory, KnowledgeDoc
+    ├── middleware/       # Auth & Admin check middleware
+    ├── routes/           # auth, complaints, rag, translate, knowledge
+    └── rag/              # embeddings.js, vectorStore.js, ragService.js
 ```
 
 ---
 
-## 🚀 Quickstart & Local Setup
+## 🛠️ Setup & Running Locally
 
 ### Prerequisites
-* **Node.js**: `>= 20.x`
-* **npm**: `>= 9.x`
-* **MongoDB Atlas URI** & **Google Gemini API Key**
+- Node.js (v18 or v20+)
+- MongoDB Atlas cluster URL
+- Google Gemini API Key
 
-### 1. Installation
-```bash
-git clone https://github.com/Pavan-create-dot/CiviBridge.git
-cd CiviBridge
-npm install
-```
-
-### 2. Configure Environment (`.env`)
-Create a `.env` file in the root folder:
+### 1. Environment Setup
+Create `.env` file in the root directory:
 ```env
 PORT=5000
-NODE_ENV=development
-MONGODB_URI="your-mongodb-atlas-connection-string"
-JWT_SECRET="your_jwt_secret_key"
+MONGODB_URI="your_mongodb_atlas_uri"
+JWT_SECRET="civibridge_secret_key"
 GEMINI_API_KEY="your_gemini_api_key"
 ADMIN_PROVISION_SECRET="civibridge-admin-secret-2026"
 ```
 
-### 3. Seed Database with Gemini Embeddings
+### 2. Install Dependencies & Seed Database
 ```bash
+# Install root, server, and client dependencies
+cd server && npm install
+cd ../client && npm install
+cd ..
+
+# Seed MongoDB with categories and knowledge docs (embeds via Gemini)
 npm run seed
 ```
 
-### 4. Start Development Servers
+### 3. Run Application
 ```bash
-# Terminal 1: Backend API (http://localhost:5000)
+# Terminal 1: Run Backend API Server
 npm run dev:server
 
-# Terminal 2: Frontend SPA (http://localhost:3000)
+# Terminal 2: Run Frontend Client
 npm run dev:client
 ```
-
-### 5. Run Integration Tests
-```bash
-npm test --workspace=server
-```
+Client runs on `http://localhost:3000`, Backend API runs on `http://localhost:5000`.
 
 ---
 
-## 🎤 Interview Highlights (How to Explain this Project)
+## 🎤 Interview Presentation Points (TCS / Technical Interview)
 
-When explaining CiviBridge to an interviewer:
-
-1. **The Core Innovation**:
-   *"I built an AI-powered civic grievance platform that bridges the gap between regional Indian language speakers and bureaucratic municipal workflows using RAG."*
-2. **The RAG & Vector Search Architecture**:
-   *"Instead of running costly dedicated vector databases, I implemented an in-database vector architecture using MongoDB Atlas. When grievances are submitted in Telugu or Hindi, Gemini generates 768-dimensional embeddings, and our vector retrieval engine calculates cosine similarity against municipal department profiles to auto-route complaints in sub-milliseconds."*
-3. **Enterprise Security & Reliability**:
-   *"The backend implements Role-Based Access Control (RBAC) with JWT and bcrypt, request sanitization via Zod schemas, and automated Gemini neural translation with graceful fallbacks."*
-4. **Full-Stack Polish**:
-   *"Includes an Admin Triage Portal with real-time aggregation metrics, priority filtering, and resolution rate analytics."*
-
----
-
-## 📄 License
-Licensed under the [MIT License](LICENSE).
+1. **Why RAG?**
+   - Traditional LLMs may hallucinate department names or write unstructured letters. RAG grounds the model output using real department scopes and government guidelines retrieved directly from MongoDB.
+2. **Where are embeddings stored?**
+   - Stored directly in MongoDB Atlas (`embedding: [Number]`). Cosine similarity search is executed in Node.js to find the top matching category and grounding rules.
+3. **How does admin knowledge update work?**
+   - When an admin updates or adds a policy document in the Admin Portal, the server generates a new embedding via Gemini API and saves it in MongoDB. The next citizen complaint automatically retrieves this updated policy rule.
