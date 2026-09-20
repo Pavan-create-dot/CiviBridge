@@ -67,6 +67,10 @@ def vector_search_chunks(query_vector: list[float], top_k: int = 5) -> list[dict
             ]
             results = list(collection.aggregate(pipeline))
             if results:
+                # Stringify ObjectId _id for JSON serialisation
+                for r in results:
+                    if "_id" in r:
+                        r["_id"] = str(r["_id"])
                 return results
         except OperationFailure:
             pass  # Index not found or not ready yet on Atlas; fall through to direct search

@@ -144,9 +144,9 @@ TASK INSTRUCTIONS:
 
     # Step 4: Invoke Gemini with fallback models for 503/429 resilience
     candidate_models = [
-        GENERATION_MODEL,
-        "models/gemini-flash-lite-latest",
-        "models/gemini-pro-latest",
+        GENERATION_MODEL,                       # models/gemini-flash-latest (primary)
+        "models/gemini-1.5-flash-latest",       # stable fallback
+        "models/gemini-1.5-pro-latest",         # last resort
     ]
 
     last_error = None
