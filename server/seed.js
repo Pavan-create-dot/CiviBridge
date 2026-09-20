@@ -4,7 +4,6 @@ require('dotenv').config({ path: process.env.DOTENV_PATH || path.resolve(__dirna
 const { connectDB } = require('./db');
 const GrievanceCategory = require('./models/GrievanceCategory');
 const KnowledgeDoc = require('./models/KnowledgeDoc');
-const { embedText } = require('./rag/embeddings');
 
 const categories = [
   {
@@ -62,26 +61,31 @@ const categories = [
 const knowledgeDocs = [
   {
     title: 'Municipal Public Grievance Petition Filing Format Guidelines',
+    source: 'Municipal Corporation Grievance Manual 2024',
     category: 'petition-guidelines',
     content: 'According to Municipal Grievance Rules, every citizen petition must clearly specify: 1. Petitioner details & contact address. 2. Specific location of the civic hazard (ward number, landmark, street name). 3. Nature and duration of the problem. 4. Immediate public safety risk or inconvenience caused. 5. Explicitly requested action from the authority.',
   },
   {
     title: 'Section 44 - Citizens Right to Public Infrastructure Safety',
+    source: 'Urban Local Bodies Act 2018',
     category: 'legal-framework',
     content: 'Under Section 44 of the Urban Local Bodies Act, municipal officers are obligated to inspect reported public infrastructure damages (potholes, open drains, water leaks) within 48 hours of filing. Urgent hazards impacting public safety must be barricaded immediately and repaired within 7 working days.',
   },
   {
     title: 'Sanitation & Solid Waste Disposal Mandate',
+    source: 'Solid Waste Management Rules 2016',
     category: 'sanitation-rules',
     content: 'The Solid Waste Management Rules dictate daily collection of household waste and immediate clearing of public garbage dumps near educational institutions, hospitals, and residential areas. Stagnant water and waste overflow must be treated with disinfectant spraying by the Public Health division.',
   },
   {
     title: 'Water Supply Pipeline Maintenance Protocol',
+    source: 'Water Supply & Sewerage Board Operational Standards',
     category: 'water-department-rules',
     content: 'Clean drinking water is a fundamental civic right. Complaints regarding main pipeline bursts or contamination must be prioritized under Category A (Urgent). The Water Supply Board is mandated to deploy emergency repair tankers and complete pipe restoration within 24 hours of notification.',
   },
   {
     title: 'Street Lighting & Public Safety Standards',
+    source: 'Bureau of Indian Standards — Public Lighting Guidelines',
     category: 'electricity-rules',
     content: 'Streetlights on major public thoroughfares, school zones, and residential lanes must maintain 100% operational status. Reported dark spots or non-functional LED fixtures must be rectified by the Electricity Department within 3 business days to prevent nighttime crimes and accidents.',
   },
@@ -91,41 +95,27 @@ async function seed() {
   console.log('Connecting to MongoDB Atlas...');
   await connectDB();
 
-  console.log('Seeding Grievance Categories with Gemini vector embeddings...');
+  console.log('Seeding Grievance Categories into MongoDB Atlas...');
   for (const cat of categories) {
-    const textToEmbed = `${cat.categoryName}: ${cat.description}`;
-    console.log(`  Embedding category: ${cat.categoryName}...`);
-    let embedding = [];
-    try {
-      embedding = await embedText(textToEmbed);
-    } catch (e) {
-      console.warn(`  Warning embedding category ${cat.categoryName}:`, e.message);
-    }
     await GrievanceCategory.findOneAndUpdate(
       { categoryName: cat.categoryName },
-      { ...cat, embedding },
+      cat,
       { upsert: true, new: true }
     );
+    console.log(`  ✓ Category seeded: ${cat.categoryName}`);
   }
 
-  console.log('Seeding Grounding Knowledge Base Docs with Gemini vector embeddings...');
+  console.log('Seeding Knowledge Documents into MongoDB Atlas...');
   for (const doc of knowledgeDocs) {
-    const textToEmbed = `${doc.title}: ${doc.content}`;
-    console.log(`  Embedding knowledge doc: ${doc.title}...`);
-    let embedding = [];
-    try {
-      embedding = await embedText(textToEmbed);
-    } catch (e) {
-      console.warn(`  Warning embedding knowledge doc ${doc.title}:`, e.message);
-    }
     await KnowledgeDoc.findOneAndUpdate(
       { title: doc.title },
-      { ...doc, embedding },
+      doc,
       { upsert: true, new: true }
     );
+    console.log(`  ✓ Knowledge doc seeded: ${doc.title}`);
   }
 
-  console.log('Seed completed successfully!');
+  console.log('\nSeed completed successfully!');
   process.exit(0);
 }
 

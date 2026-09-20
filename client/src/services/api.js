@@ -19,7 +19,7 @@ async function request(endpoint, options = {}) {
   const data = await response.json().catch(() => ({}));
 
   if (!response.ok) {
-    const error = new Error(data.error || `Request failed with status ${response.status}`);
+    const error = new Error(data.error || data.detail || `Request failed with status ${response.status}`);
     error.status = response.status;
     error.data = data;
     throw error;
@@ -28,7 +28,7 @@ async function request(endpoint, options = {}) {
   return data;
 }
 
-// ── Auth Services ─────────────────────────────────────────────────────────────
+// ── Auth Services ──────────────────────────────────────────────────────────────
 export async function loginUser(email, password) {
   return request('/auth/login', { method: 'POST', body: JSON.stringify({ email, password }) });
 }
@@ -48,24 +48,26 @@ export async function registerAdmin(email, password, adminSecret) {
 export async function generateGroundedComplaint(prompt, language) {
   return request('/rag/generate', {
     method: 'POST',
-    body: JSON.stringify({ prompt, language }),
+    body: JSON.stringify({ grievance: prompt, prompt, language }),
   });
 }
 
-// ── Grievance Services ─────────────────────────────────────────────────────────
+// ── Grievance Services ────────────────────────────────────────────────────────
 export async function submitComplaint(payload) {
-  return request('/complaints', {
+  return request('/grievances', {
     method: 'POST',
     body: JSON.stringify(payload),
   });
 }
 
 export async function getMyComplaints() {
-  return request('/complaints/me', { method: 'GET' });
+  const data = await request('/grievances/me', { method: 'GET' });
+  // Normalize: support both grievances and complaints keys
+  return { complaints: data.grievances || data.complaints || [] };
 }
 
 export async function deleteComplaint(id) {
-  return request(`/complaints/${id}`, { method: 'DELETE' });
+  return request(`/grievances/${id}`, { method: 'DELETE' });
 }
 
 export async function getAdminComplaints(params = {}) {
@@ -74,21 +76,27 @@ export async function getAdminComplaints(params = {}) {
     if (v !== undefined && v !== null && v !== '') query.append(k, v);
   });
   const qStr = query.toString() ? `?${query.toString()}` : '';
-  return request(`/complaints${qStr}`, { method: 'GET' });
+  const data = await request(`/grievances${qStr}`, { method: 'GET' });
+  // Normalize: backend returns both grievances and complaints keys for compatibility
+  return {
+    complaints: data.grievances || data.complaints || [],
+    stats: data.stats || {},
+  };
 }
 
 export async function updateComplaintStatus(id, updateData) {
-  return request(`/complaints/${id}`, {
+  const data = await request(`/grievances/${id}`, {
     method: 'PATCH',
     body: JSON.stringify(updateData),
   });
+  return { complaint: data.grievance || data.complaint, ...data };
 }
 
 export async function autoRouteComplaint(id) {
-  return request(`/complaints/${id}/auto-route`, { method: 'POST' });
+  return request(`/grievances/${id}/auto-route`, { method: 'POST' });
 }
 
-// ── Admin Knowledge Base Services ─────────────────────────────────────────────
+// ── Admin Knowledge Base Services ──────────────────────────────────────────────
 export async function getKnowledgeDocs() {
   return request('/knowledge', { method: 'GET' });
 }

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { generateGroundedComplaint, submitComplaint, getMyComplaints, deleteComplaint } from '../services/api';
+import { onGrievanceUpdated } from '../services/socket';
 
 const LANGUAGES = [
   { code: 'en', label: 'English' },
@@ -43,16 +44,20 @@ export default function CitizenPortal() {
   const [selectedLanguage, setSelectedLanguage] = useState('en');
   const [userPrompt, setUserPrompt] = useState('');
   const [loading, setLoading] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
 
-  // Generated RAG output
+  // RAG Generation output — kept in-memory until citizen submits
   const [generatedDraft, setGeneratedDraft] = useState('');
-  const [matchedCategory, setMatchedCategory] = useState(null);
-  const [matchedKnowledge, setMatchedKnowledge] = useState([]);
-  const [currentComplaintId, setCurrentComplaintId] = useState(null);
+  const [ragCategory, setRagCategory] = useState('');
+  const [ragDepartment, setRagDepartment] = useState('');
+  const [ragPriority, setRagPriority] = useState('');
+  const [ragSources, setRagSources] = useState([]);
+  const [matchedCategoryId, setMatchedCategoryId] = useState(null);
+  const [readyToSubmit, setReadyToSubmit] = useState(false);
 
-  // User submitted complaints list
+  // Citizen's submitted grievances list
   const [myComplaints, setMyComplaints] = useState([]);
   const [loadingComplaints, setLoadingComplaints] = useState(false);
 
@@ -61,6 +66,18 @@ export default function CitizenPortal() {
 
   useEffect(() => {
     fetchComplaints();
+  }, []);
+
+  // Socket.IO: live status updates from admin triage
+  useEffect(() => {
+    const unsubscribe = onGrievanceUpdated((updatedGrievance) => {
+      setMyComplaints((prev) =>
+        prev.map((c) =>
+          (c._id || c.id) === (updatedGrievance._id || updatedGrievance.id) ? updatedGrievance : c
+        )
+      );
+    });
+    return unsubscribe;
   }, []);
 
   const fetchComplaints = async () => {
@@ -75,7 +92,8 @@ export default function CitizenPortal() {
     }
   };
 
-  const handleGenerateAndSubmit = async (e) => {
+  // STEP 1: Generate petition via RAG — does NOT save to database
+  const handleGenerate = async (e) => {
     e.preventDefault();
     if (!userPrompt.trim()) return;
 
@@ -83,34 +101,63 @@ export default function CitizenPortal() {
     setError('');
     setSuccessMessage('');
     setGeneratedDraft('');
-    setMatchedCategory(null);
-    setMatchedKnowledge([]);
+    setRagCategory('');
+    setRagDepartment('');
+    setRagPriority('');
+    setRagSources([]);
+    setMatchedCategoryId(null);
+    setReadyToSubmit(false);
 
     try {
-      // 1. Run RAG Pipeline
       const ragRes = await generateGroundedComplaint(userPrompt, selectedLanguage);
 
-      setGeneratedDraft(ragRes.draft);
-      setMatchedCategory(ragRes.topMatchCategory);
-      setMatchedKnowledge(ragRes.matchedKnowledge || []);
+      setGeneratedDraft(ragRes.draft || '');
+      setRagCategory(ragRes.category || '');
+      setRagDepartment(ragRes.department || '');
+      setRagPriority(ragRes.priority || 'medium');
+      setRagSources(ragRes.sources || ragRes.matchedKnowledge || []);
+      setMatchedCategoryId(
+        ragRes.matchedCategoryId ||
+        (ragRes.topMatchCategory ? (ragRes.topMatchCategory._id || ragRes.topMatchCategory.id) : null)
+      );
+      setReadyToSubmit(true);
+    } catch (err) {
+      setError(err.message || 'Failed to generate petition. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
 
-      // 2. Auto-save grievance to MongoDB
+  // STEP 2: Submit — saves the reviewed grievance to the database
+  const handleSubmit = async () => {
+    if (!generatedDraft || submitting) return;
+
+    setSubmitting(true);
+    setError('');
+    setSuccessMessage('');
+
+    try {
       const saveRes = await submitComplaint({
         rawText: userPrompt,
         detectedLanguage: selectedLanguage,
-        generatedDraft: ragRes.draft,
-        matchedCategoryId: ragRes.topMatchCategory ? (ragRes.topMatchCategory._id || ragRes.topMatchCategory.id) : null,
+        generatedDraft,
+        matchedCategoryId,
+        assignedDepartment: ragDepartment,
+        priority: ragPriority,
+        sources: ragSources,
       });
 
-      const savedId = saveRes.complaint._id || saveRes.complaint.id;
-      setCurrentComplaintId(savedId);
-      setSuccessMessage(`Grounded Petition generated & recorded! Tracking ID: #${savedId}`);
-
+      const grievance = saveRes.grievance || saveRes.complaint || {};
+      const savedId = grievance._id || grievance.id;
+      setSuccessMessage(`Grievance submitted successfully! Tracking ID: #${savedId}`);
+      setReadyToSubmit(false);
+      setGeneratedDraft('');
+      setUserPrompt('');
       fetchComplaints();
     } catch (err) {
-      setError(err.message || 'Failed to generate petition.');
+      setError(err.message || 'Failed to submit grievance.');
     } finally {
-      setLoading(false);
+      setSubmitting(false);
     }
   };
 
@@ -175,7 +222,7 @@ export default function CitizenPortal() {
             </div>
           </div>
 
-          <form onSubmit={handleGenerateAndSubmit} className="draft-form mt-3">
+          <form onSubmit={handleGenerate} className="draft-form mt-3">
             <div className="form-group">
               <label>Select Preferred Output Language</label>
               <div className="language-selector">
@@ -207,6 +254,52 @@ export default function CitizenPortal() {
               {loading ? 'Running RAG Retrieval & Drafting...' : '⚡ Generate Grounded Petition'}
             </button>
           </form>
+
+          {/* Review section — only shown after generation, before submission */}
+          {readyToSubmit && generatedDraft && (
+            <div className="review-section mt-3">
+              <h3 className="review-title">📝 Review Your Petition</h3>
+
+              {(ragCategory || ragDepartment || ragPriority) && (
+                <div className="rag-meta-row">
+                  {ragCategory && <span className="meta-tag"><strong>Category:</strong> {ragCategory}</span>}
+                  {ragDepartment && <span className="meta-tag dept"><strong>Dept:</strong> {ragDepartment}</span>}
+                  {ragPriority && <span className={`meta-tag priority-${ragPriority}`}><strong>Priority:</strong> {ragPriority}</span>}
+                </div>
+              )}
+
+              <div className="draft-preview">
+                <pre className="draft-text">{generatedDraft}</pre>
+              </div>
+
+              {ragSources && ragSources.length > 0 && (
+                <div className="sources-section mt-2">
+                  <strong>📚 Grounded on:</strong>
+                  <ul className="sources-list">
+                    {ragSources.map((s, i) => (
+                      <li key={i}>{s.title || s.source || `Document chunk ${i + 1}`}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              <div className="review-actions mt-3">
+                <button
+                  className="btn-secondary btn-sm"
+                  onClick={() => { setReadyToSubmit(false); setGeneratedDraft(''); }}
+                >
+                  ✏️ Edit Prompt
+                </button>
+                <button
+                  className="btn-primary"
+                  onClick={handleSubmit}
+                  disabled={submitting}
+                >
+                  {submitting ? 'Filing Grievance...' : '✅ Submit Grievance'}
+                </button>
+              </div>
+            </div>
+          )}
 
           {error && <div className="alert-box error mt-3">{error}</div>}
           {successMessage && <div className="alert-box success mt-3">{successMessage}</div>}

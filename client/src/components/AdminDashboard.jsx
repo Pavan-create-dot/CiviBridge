@@ -9,6 +9,7 @@ import {
   updateKnowledgeDoc,
   deleteKnowledgeDoc,
 } from '../services/api';
+import { onGrievanceCreated } from '../services/socket';
 
 export default function AdminDashboard() {
   const [activeTab, setActiveTab] = useState('triage'); // 'triage' | 'knowledge'
@@ -40,6 +41,19 @@ export default function AdminDashboard() {
     if (activeTab === 'triage') fetchComplaints();
     if (activeTab === 'knowledge') fetchKnowledge();
   }, [activeTab]);
+
+  // Socket.IO: listen for new grievances in real time
+  useEffect(() => {
+    const unsubscribe = onGrievanceCreated((newGrievance) => {
+      setComplaints((prev) => [newGrievance, ...prev]);
+      setStats((prev) => ({
+        ...prev,
+        total: prev.total + 1,
+        pendingCount: prev.pendingCount + 1,
+      }));
+    });
+    return unsubscribe;
+  }, []);
 
   // ── Triage Operations ───────────────────────────────────────────────────────
   const fetchComplaints = async () => {

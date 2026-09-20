@@ -1,6 +1,7 @@
 // AuthContext — React context managing user authentication state and JWT token handling
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { loginUser, registerUser, registerAdmin } from '../services/api';
+import { connectSocket, disconnectSocket } from '../services/socket';
 
 const AuthContext = createContext(null);
 
@@ -18,6 +19,7 @@ export function AuthProvider({ children }) {
       try {
         setToken(savedToken);
         setUser(JSON.parse(savedUser));
+        connectSocket(savedToken);
       } catch {
         localStorage.removeItem('civibridge_token');
         localStorage.removeItem('civibridge_user');
@@ -32,6 +34,7 @@ export function AuthProvider({ children }) {
     setUser(data.user);
     localStorage.setItem('civibridge_token', data.token);
     localStorage.setItem('civibridge_user', JSON.stringify(data.user));
+    connectSocket(data.token);
     return data;
   };
 
@@ -51,6 +54,7 @@ export function AuthProvider({ children }) {
     setToken(null);
     localStorage.removeItem('civibridge_token');
     localStorage.removeItem('civibridge_user');
+    disconnectSocket();
   };
 
   return (
